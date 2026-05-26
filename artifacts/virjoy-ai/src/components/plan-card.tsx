@@ -16,15 +16,22 @@ export function PlanCard({ plan, isSelected, onSelect, displayOnly = false }: Pl
   const getExtraBullets = (id: string) => {
     switch (id) {
       case "free":
+        return [
+          "Prompt-Based Generation",
+          "Basic Templates",
+          "Local Rendering Only"
+        ];
       case "starter":
         return [
-          "Form-Based Video Creation",
+          "Prompt-Based Video Creation",
+          "Smart Template Matching",
           "No AI Story Generation"
         ];
       case "creator":
         return [
           "Enhanced Cinematic Effects",
-          "Smart AI Assistance"
+          "Smart AI Assistance",
+          "Priority Rendering"
         ];
       case "premium":
         return [

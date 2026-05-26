@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const videoJobsTable = pgTable("video_jobs", {
   id: serial("id").primaryKey(),
+  prompt: text("prompt"),
   title: text("title"),
   videoType: text("video_type").notNull(),
   duration: integer("duration").notNull(),

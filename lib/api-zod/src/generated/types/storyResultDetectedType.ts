@@ -6,13 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * Optional — auto-detected from prompt if omitted
- */
-export type VideoJobInputVideoType = typeof VideoJobInputVideoType[keyof typeof VideoJobInputVideoType];
+export type StoryResultDetectedType = typeof StoryResultDetectedType[keyof typeof StoryResultDetectedType];
 
 
-export const VideoJobInputVideoType = {
+export const StoryResultDetectedType = {
   ad: 'ad',
   horror: 'horror',
   promo: 'promo',

@@ -1,11 +1,11 @@
 import path from "path";
 import fs from "fs/promises";
-import { createWriteStream, existsSync } from "fs";
 import { spawn } from "child_process";
 import { logger } from "./logger";
 
 export interface VideoProcessingOptions {
   jobId: number;
+  prompt?: string;
   videoType: string;
   duration: number;
   plan: string;
@@ -36,8 +36,16 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
+// Color themes per video type for the placeholder
+const TYPE_THEMES: Record<string, { color: string; label: string }> = {
+  horror: { color: "0x1a0000", label: "HORROR" },
+  ad: { color: "0x0a0a1a", label: "COMMERCIAL AD" },
+  promo: { color: "0x0a001a", label: "PROMO VIDEO" },
+  vlog: { color: "0x001a1a", label: "VLOG" },
+};
+
 export async function processVideo(opts: VideoProcessingOptions): Promise<string> {
-  const { jobId, videoType, duration, hasWatermark, imagePaths, clipPaths, outputDir } = opts;
+  const { jobId, prompt, videoType, duration, plan, hasWatermark, imagePaths, clipPaths, outputDir } = opts;
   const outputFile = path.join(outputDir, `job_${jobId}.mp4`);
 
   await fs.mkdir(outputDir, { recursive: true });
@@ -45,25 +53,13 @@ export async function processVideo(opts: VideoProcessingOptions): Promise<string
   const hasFfmpeg = await checkFfmpeg();
   if (!hasFfmpeg) {
     logger.warn("ffmpeg not available, creating placeholder video");
-    return createPlaceholderVideo(outputFile, duration, hasWatermark, videoType);
+    return createPlaceholderVideo(outputFile, duration, hasWatermark, videoType, prompt);
   }
-
-  const inputs: string[] = [];
-  const filterParts: string[] = [];
-  let inputIndex = 0;
-
-  const effectForType: Record<string, string> = {
-    horror: "fade=t=in:st=0:d=0.5,fade=t=out:st=" + (duration - 0.5) + ":d=0.5",
-    ad: "zoompan=z='min(zoom+0.002,1.3)':d=75:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'",
-    promo: "fade=t=in:st=0:d=0.3",
-    vlog: "fade=t=in:st=0:d=0.5",
-  };
 
   if (imagePaths.length === 0 && clipPaths.length === 0) {
-    return createPlaceholderVideo(outputFile, duration, hasWatermark, videoType);
+    return createPlaceholderVideo(outputFile, duration, hasWatermark, videoType, prompt);
   }
 
-  // Build simple slideshow from images and clips
   const ffmpegArgs: string[] = [];
 
   if (imagePaths.length > 0) {
@@ -71,23 +67,20 @@ export async function processVideo(opts: VideoProcessingOptions): Promise<string
     const imageConcatFile = path.join(outputDir, `concat_${jobId}.txt`);
     const lines = imagePaths.map((p) => `file '${p}'\nduration ${perImageDuration}`).join("\n");
     await fs.writeFile(imageConcatFile, lines + "\n");
-
-    ffmpegArgs.push(
-      "-f", "concat", "-safe", "0", "-i", imageConcatFile,
-    );
-    inputIndex++;
+    ffmpegArgs.push("-f", "concat", "-safe", "0", "-i", imageConcatFile);
   }
 
   for (const clip of clipPaths) {
     ffmpegArgs.push("-i", clip);
-    inputIndex++;
   }
 
-  if (inputIndex === 0) {
-    return createPlaceholderVideo(outputFile, duration, hasWatermark, videoType);
-  }
+  const crf = plan === "free" ? "32" : plan === "starter" ? "26" : "20";
+  const vfFilters: string[] = [
+    "scale=1280:720:force_original_aspect_ratio=decrease",
+    "pad=1280:720:(ow-iw)/2:(oh-ih)/2",
+    "format=yuv420p",
+  ];
 
-  const vfFilters: string[] = ["scale=1280:720:force_original_aspect_ratio=decrease", "pad=1280:720:(ow-iw)/2:(oh-ih)/2", "format=yuv420p"];
   if (hasWatermark) {
     vfFilters.push("drawtext=text='VirJoy AI':fontsize=32:fontcolor=white@0.5:x=10:y=10");
   }
@@ -96,7 +89,7 @@ export async function processVideo(opts: VideoProcessingOptions): Promise<string
     "-vf", vfFilters.join(","),
     "-c:v", "libx264",
     "-preset", "fast",
-    "-crf", opts.plan === "free" ? "32" : opts.plan === "starter" ? "26" : "20",
+    "-crf", crf,
     "-t", String(duration),
     "-y",
     outputFile,
@@ -108,7 +101,7 @@ export async function processVideo(opts: VideoProcessingOptions): Promise<string
     return outputFile;
   } catch (err) {
     logger.error({ err, jobId }, "ffmpeg processing failed, using placeholder");
-    return createPlaceholderVideo(outputFile, duration, hasWatermark, videoType);
+    return createPlaceholderVideo(outputFile, duration, hasWatermark, videoType, prompt);
   }
 }
 
@@ -117,16 +110,27 @@ async function createPlaceholderVideo(
   duration: number,
   hasWatermark: boolean,
   videoType: string,
+  prompt?: string,
 ): Promise<string> {
-  const label = videoType.toUpperCase();
+  const theme = TYPE_THEMES[videoType] ?? { color: "0x0a0a1a", label: "VIDEO" };
+  // Truncate and escape prompt for drawtext if available
+  const promptLabel = prompt
+    ? prompt.length > 50 ? prompt.slice(0, 50) + "..." : prompt
+    : theme.label;
+  const escaped = promptLabel.replace(/['":\\]/g, "");
+
   const watermarkFilter = hasWatermark
-    ? ",drawtext=text='VirJoy AI':fontsize=32:fontcolor=white@0.5:x=10:y=10"
+    ? ",drawtext=text='VirJoy AI':fontsize=28:fontcolor=white@0.4:x=10:y=10"
     : "";
 
   const args = [
     "-f", "lavfi",
-    "-i", `color=c=0x1a1a2e:size=1280x720:rate=25`,
-    "-vf", `drawtext=text='${label} VIDEO':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2${watermarkFilter},format=yuv420p`,
+    "-i", `color=c=${theme.color}:size=1280x720:rate=25`,
+    "-vf", [
+      `drawtext=text='${theme.label}':fontsize=52:fontcolor=white@0.9:x=(w-text_w)/2:y=(h-text_h)/2-40`,
+      `drawtext=text='${escaped}':fontsize=22:fontcolor=white@0.5:x=(w-text_w)/2:y=(h-text_h)/2+40`,
+      "format=yuv420p",
+    ].join(",") + watermarkFilter,
     "-c:v", "libx264",
     "-preset", "ultrafast",
     "-t", String(duration),
@@ -137,7 +141,6 @@ async function createPlaceholderVideo(
   try {
     await runFfmpeg(args);
   } catch {
-    // Last resort: write a minimal valid mp4 placeholder
     await fs.writeFile(outputFile, Buffer.alloc(0));
   }
 

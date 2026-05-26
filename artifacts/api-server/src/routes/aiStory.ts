@@ -4,10 +4,10 @@ import { ai } from "@workspace/integrations-gemini-ai";
 const router = Router();
 
 router.post("/ai/story", async (req, res) => {
-  const { idea, videoType, plan } = req.body as { idea?: string; videoType?: string; plan?: string };
+  const { prompt, plan } = req.body as { prompt?: string; plan?: string };
 
-  if (!idea || !videoType) {
-    res.status(400).json({ error: "idea and videoType are required" });
+  if (!prompt?.trim()) {
+    res.status(400).json({ error: "prompt is required" });
     return;
   }
 
@@ -16,15 +16,21 @@ router.post("/ai/story", async (req, res) => {
     return;
   }
 
-  const prompt = `You are a professional video script writer for VirJoy AI.
+  const systemPrompt = `You are a professional cinematic video script writer for VirJoy AI.
 
-The user wants to create a "${videoType}" style video with this idea:
-"${idea}"
+The user has provided this prompt: "${prompt}"
 
-Generate a compelling video story and scene plan. Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
+Analyze the prompt and:
+1. Detect the best video style (ad, horror, promo, or vlog)
+2. Generate a compelling title
+3. Write a 2-3 sentence narrative description  
+4. Create 3-6 cinematic scenes
+
+Return ONLY valid JSON (no markdown, no code blocks) in this exact format:
 {
-  "title": "A catchy, concise title",
+  "title": "A catchy, concise title derived from the prompt",
   "story": "A 2-3 sentence narrative description of the overall video story",
+  "detectedType": "promo",
   "scenes": [
     {
       "index": 1,
@@ -35,38 +41,50 @@ Generate a compelling video story and scene plan. Return ONLY valid JSON (no mar
   ]
 }
 
-Rules:
-- Create 3-6 scenes based on the video type
-- For "horror": dark, suspenseful, atmospheric
-- For "ad": bright, punchy, product-focused  
-- For "promo": energetic, inspiring, brand-focused
-- For "vlog": casual, personal, authentic
-- Effects must be one of: zoom-in, zoom-out, fade, pan-left, pan-right, cross-fade
-- Total scene durations should sum to approximately 30-60 seconds
-- Make it cinematic and compelling`;
+Style detection rules:
+- horror: if prompt contains dark, scary, thriller, ghost, nightmare, etc → "horror"
+- vlog: if lifestyle, personal, travel, daily, diary, etc → "vlog"  
+- ad: if product, commercial, advertisement, sell, buy, offer → "ad"
+- otherwise → "promo"
+
+Effect options: zoom-in, zoom-out, fade, pan-left, pan-right, cross-fade
+Total scene durations should sum to 30-90 seconds.
+Make it cinematic, specific, and compelling.`;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
       config: { maxOutputTokens: 8192 },
     });
 
     const text = response.text ?? "";
     const cleanedText = text.replace(/```json\n?|\n?```/g, "").trim();
 
-    let parsed: { title: string; story: string; scenes: Array<{ index: number; description: string; duration: number; effect: string }> };
+    let parsed: {
+      title: string;
+      story: string;
+      detectedType: string;
+      scenes: Array<{ index: number; description: string; duration: number; effect: string }>;
+    };
+
     try {
       parsed = JSON.parse(cleanedText);
     } catch {
       req.log.error({ text }, "Failed to parse Gemini response as JSON");
-      res.status(500).json({ error: "AI returned invalid response format. Please try again." });
+      res.status(500).json({ error: "AI returned an invalid response. Please try again." });
       return;
     }
 
     if (!parsed.title || !parsed.story || !Array.isArray(parsed.scenes)) {
       res.status(500).json({ error: "AI returned incomplete story data. Please try again." });
       return;
+    }
+
+    // Ensure detectedType is valid
+    const validTypes = ["ad", "horror", "promo", "vlog"];
+    if (!validTypes.includes(parsed.detectedType)) {
+      parsed.detectedType = "promo";
     }
 
     res.json(parsed);

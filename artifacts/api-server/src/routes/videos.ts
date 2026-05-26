@@ -3,8 +3,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { db, videoJobsTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
-import { PLAN_MAP, VALID_TYPES, VALID_PLANS, VALID_DURATIONS } from "../config/plans";
+import { eq } from "drizzle-orm";
+import { PLAN_MAP, VALID_PLANS, VALID_DURATIONS } from "../config/plans";
 import { processVideo } from "../lib/videoProcessor";
 import { logger } from "../lib/logger";
 
@@ -39,11 +39,28 @@ const upload = multer({
   },
 });
 
+/**
+ * Auto-detect video style from the user's prompt using keyword matching.
+ * Returns one of the valid video types.
+ */
+function detectVideoType(prompt: string): "ad" | "horror" | "promo" | "vlog" {
+  const lower = prompt.toLowerCase();
+  if (/horror|scary|dark|thriller|spooky|terror|ghost|nightmare|creepy|eerie|sinister/.test(lower)) {
+    return "horror";
+  }
+  if (/vlog|lifestyle|personal|daily|routine|travel|diary|day in|my life|behind the scenes/.test(lower)) {
+    return "vlog";
+  }
+  if (/\bad\b|commercial|advertisement|product launch|sell|buy|sale|offer|deal|discount/.test(lower)) {
+    return "ad";
+  }
+  return "promo";
+}
+
 // GET /api/videos
 router.get("/videos", async (req, res) => {
   const jobs = await db.select().from(videoJobsTable).orderBy(videoJobsTable.createdAt);
-  const formatted = jobs.map(formatJob);
-  res.json(formatted);
+  res.json(jobs.map(formatJob));
 });
 
 // GET /api/videos/summary
@@ -70,18 +87,13 @@ router.post(
     { name: "clips", maxCount: 20 },
   ]),
   async (req, res) => {
-    const { title, videoType, duration, plan } = req.body as Record<string, string>;
+    const { prompt, title, videoType: explicitType, duration, plan } = req.body as Record<string, string>;
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
 
     const images = files?.["images"] ?? [];
     const clips = files?.["clips"] ?? [];
 
-    if (!VALID_TYPES.includes(videoType)) {
-      res.status(400).json({ error: "Invalid videoType. Must be one of: ad, horror, promo, vlog" });
-      return;
-    }
-
-    if (!VALID_PLANS.includes(plan)) {
+    if (!plan || !VALID_PLANS.includes(plan)) {
       res.status(400).json({ error: "Invalid plan" });
       return;
     }
@@ -91,6 +103,14 @@ router.post(
       res.status(400).json({ error: "Invalid duration. Must be 10, 30, 60, or 180" });
       return;
     }
+
+    // Resolve video type: explicit selection > auto-detected from prompt > default promo
+    const videoType: "ad" | "horror" | "promo" | "vlog" =
+      explicitType && ["ad", "horror", "promo", "vlog"].includes(explicitType)
+        ? (explicitType as "ad" | "horror" | "promo" | "vlog")
+        : prompt
+        ? detectVideoType(prompt)
+        : "promo";
 
     const planConfig = PLAN_MAP[plan];
 
@@ -112,6 +132,7 @@ router.post(
     const [job] = await db
       .insert(videoJobsTable)
       .values({
+        prompt: prompt || null,
         title: title || null,
         videoType,
         duration: durationNum,
@@ -123,7 +144,7 @@ router.post(
       })
       .returning();
 
-    req.log.info({ jobId: job.id }, "Video job created");
+    req.log.info({ jobId: job.id, videoType, hasPrompt: !!prompt }, "Video job created");
     res.status(201).json(formatJob(job));
 
     // Process async
@@ -134,17 +155,15 @@ router.post(
           .set({ status: "processing", updatedAt: new Date() })
           .where(eq(videoJobsTable.id, job.id));
 
-        const imagePaths = images.map((f) => f.path);
-        const clipPaths = clips.map((f) => f.path);
-
         const outputPath = await processVideo({
           jobId: job.id,
+          prompt: prompt || undefined,
           videoType,
           duration: durationNum,
           plan,
           hasWatermark: planConfig.watermark,
-          imagePaths,
-          clipPaths,
+          imagePaths: images.map((f) => f.path),
+          clipPaths: clips.map((f) => f.path),
           outputDir: OUTPUT_DIR,
         });
 
@@ -202,7 +221,6 @@ router.delete("/videos/:id", async (req, res) => {
     return;
   }
 
-  // Clean up files
   if (job.outputPath) {
     await fs.unlink(job.outputPath).catch(() => {});
   }
@@ -221,8 +239,7 @@ router.get("/videos/file/:filename", async (req, res) => {
     res.setHeader("Content-Type", "video/mp4");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     const { createReadStream } = await import("fs");
-    const stream = createReadStream(filePath);
-    stream.pipe(res);
+    createReadStream(filePath).pipe(res);
   } catch {
     res.status(404).json({ error: "File not found" });
   }
@@ -231,6 +248,7 @@ router.get("/videos/file/:filename", async (req, res) => {
 function formatJob(job: typeof videoJobsTable.$inferSelect) {
   return {
     id: String(job.id),
+    prompt: job.prompt ?? null,
     title: job.title ?? null,
     videoType: job.videoType,
     duration: job.duration,

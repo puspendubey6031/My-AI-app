@@ -3,7 +3,7 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: VirJoy AI — form-based AI video creation API
+  description: VirJoy AI — prompt-based AI video creation API
 servers:
   - url: /api
     description: Base API path
@@ -48,7 +48,7 @@ paths:
     post:
       operationId: createVideoJob
       tags: [videos]
-      summary: Create and queue a video generation job
+      summary: Create and queue a prompt-based video generation job
       requestBody:
         required: true
         content:
@@ -149,7 +149,7 @@ paths:
     post:
       operationId: generateAiStory
       tags: [ai]
-      summary: Generate a full story and scene plan from an idea (Premium only)
+      summary: Generate a full story and scene plan from a prompt (Premium only)
       requestBody:
         required: true
         content:
@@ -186,11 +186,15 @@ components:
       properties:
         id:
           type: string
+        prompt:
+          type: ["string", "null"]
+          description: The user's text prompt describing the video
         title:
           type: ["string", "null"]
         videoType:
           type: string
           enum: [ad, horror, promo, vlog]
+          description: Detected or specified video style
         duration:
           type: integer
           description: Duration in seconds (10, 30, 60, 180)
@@ -219,13 +223,15 @@ components:
 
     VideoJobInput:
       type: object
-      required: [videoType, duration, plan]
+      required: [duration, plan]
       properties:
-        title:
+        prompt:
           type: string
+          description: Text prompt describing the video. The system auto-detects style from this.
         videoType:
           type: string
           enum: [ad, horror, promo, vlog]
+          description: Optional — auto-detected from prompt if omitted
         duration:
           type: integer
           description: Duration in seconds
@@ -293,22 +299,23 @@ components:
 
     StoryInput:
       type: object
-      required: [idea, videoType]
+      required: [prompt]
       properties:
-        idea:
+        prompt:
           type: string
-        videoType:
-          type: string
-          enum: [ad, horror, promo, vlog]
+          description: The user's prompt describing the video idea
 
     StoryResult:
       type: object
-      required: [title, story, scenes]
+      required: [title, story, scenes, detectedType]
       properties:
         title:
           type: string
         story:
           type: string
+        detectedType:
+          type: string
+          enum: [ad, horror, promo, vlog]
         scenes:
           type: array
           items:
