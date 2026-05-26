@@ -1,0 +1,365 @@
+Build the complete backend architecture for VirJoy AI.
+
+IMPORTANT:
+VirJoy AI is a prompt-based cinematic AI video generation SaaS platform.
+
+Frontend UI is already completed.
+Now build the FULL backend system with profit-optimized credit logic and secure dual-authentication system.
+
+The backend must be scalable, modular, production-ready, and mobile-app ready.
+
+--------------------------------------------------
+TECH STACK
+--------------------------------------------------
+
+Backend:
+- Node.js
+- Express.js
+
+Video Engine:
+- FFmpeg
+
+Uploads:
+- Multer
+
+Database + Backend Services:
+- Firebase
+- Supabase
+
+IMPORTANT:
+Use BOTH Firebase and Supabase together.
+
+--------------------------------------------------
+FIREBASE RESPONSIBILITIES
+--------------------------------------------------
+
+Use Firebase for:
+- Authentication
+- Google login
+- Email login
+- Mobile OTP authentication
+- Android app login sync
+- Session management
+- Push notification support later
+
+--------------------------------------------------
+IMPORTANT AUTHENTICATION RULE
+--------------------------------------------------
+
+VirJoy AI must use DUAL LOGIN VERIFICATION.
+
+Users must login using BOTH:
+
+1. Email account
+2. Mobile number with OTP verification
+
+Login flow:
+
+Step 1:
+User enters email
+
+Step 2:
+User enters mobile number
+
+Step 3:
+Send OTP to mobile number
+
+Step 4:
+Verify OTP
+
+Step 5:
+Account becomes active
+
+IMPORTANT:
+The app should NOT allow access using only email login.
+
+Both email AND verified mobile number are required.
+
+This is required to:
+- reduce fake accounts
+- reduce unlimited free credit abuse
+- improve account security
+
+--------------------------------------------------
+ACCOUNT SYNC RULE
+--------------------------------------------------
+
+If the same user logs into:
+- website
+- Android app
+
+using the same verified email + mobile number,
+then:
+- credits
+- subscriptions
+- generated videos
+- history
+
+must remain synced automatically.
+
+--------------------------------------------------
+SUPABASE RESPONSIBILITIES
+--------------------------------------------------
+
+Use Supabase for:
+- database
+- generation history
+- video metadata
+- credit tracking
+- plan management
+- generation logs
+
+--------------------------------------------------
+PLAN SYSTEM
+--------------------------------------------------
+
+🟢 FREE PLAN:
+- 5 credits
+- valid for 10 days only
+- user receives free credits once per month
+- watermark ON
+
+🟡 STARTER PLAN:
+₹199/month
+50 credits/month
+
+🔵 CREATOR PLAN:
+₹399/month
+150 credits/month
+
+🔴 PREMIUM PLAN:
+₹799/month
+400 credits/month
+
+IMPORTANT:
+The pricing and credit system must be optimized for platform profit.
+
+--------------------------------------------------
+CREDIT LOGIC
+--------------------------------------------------
+
+10 second video = 2 credits
+
+30 second video = 6 credits
+
+1 minute video = 12 credits
+
+3 minute video = 30 credits
+
+Extra uploaded video clip = +2 credits
+
+Premium cinematic effects = +3 credits
+
+Full Gemini AI story generation = +5 credits
+
+Images/screenshots should NOT cost extra credits.
+
+IMPORTANT:
+Deduct credits ONLY after successful generation.
+
+If rendering fails:
+- no credit deduction
+
+--------------------------------------------------
+PROFIT OPTIMIZATION RULES
+--------------------------------------------------
+
+STARTER PLAN should maintain:
+₹70–₹80 average profit margin per active user.
+
+CREATOR PLAN should maintain:
+₹150+ average profit margin per active user.
+
+PREMIUM PLAN should maintain high-margin profitability with controlled AI usage.
+
+Use:
+- AI limits
+- rendering limits
+- duration limits
+- clip limits
+- feature gating
+
+to reduce backend costs.
+
+--------------------------------------------------
+AI SYSTEM LOGIC
+--------------------------------------------------
+
+STARTER:
+- local rendering only
+- no Gemini story AI
+- basic cinematic templates
+- limited render quality
+
+CREATOR:
+- smart AI assistance
+- enhanced effects
+- limited Gemini usage
+
+PREMIUM:
+- full Gemini AI story generation
+- cinematic AI scene building
+- advanced editing pipeline
+
+--------------------------------------------------
+DATABASE TABLES
+--------------------------------------------------
+
+Create models/tables for:
+
+1. users
+- uid
+- email
+- mobile_number
+- mobile_verified
+- username
+- current_plan
+- credits
+- created_at
+
+2. subscriptions
+
+3. generations
+
+4. uploads
+
+5. credit_logs
+
+6. plan_limits
+
+--------------------------------------------------
+API ENVIRONMENT SUPPORT
+--------------------------------------------------
+
+Prepare secure .env support for:
+
+FIREBASE_API_KEY
+FIREBASE_AUTH_DOMAIN
+FIREBASE_PROJECT_ID
+
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+
+GEMINI_API_KEY
+
+RAZORPAY_KEY_ID
+RAZORPAY_SECRET
+
+JWT_SECRET
+
+--------------------------------------------------
+BACKEND STRUCTURE
+--------------------------------------------------
+
+Create scalable folder structure:
+
+/backend
+/config
+/routes
+/controllers
+/services
+/middleware
+/uploads
+/output
+/utils
+
+--------------------------------------------------
+UPLOAD SYSTEM
+--------------------------------------------------
+
+Support uploads:
+- screenshots
+- images
+- short clips
+- screen recordings
+
+Validate:
+- file type
+- size
+- duration
+
+Generate secure unique filenames.
+
+--------------------------------------------------
+VIDEO GENERATION PIPELINE
+--------------------------------------------------
+
+Using FFmpeg:
+
+1. Read prompt
+2. Detect style
+3. Build cinematic timeline
+4. Insert uploaded media
+5. Add transitions
+6. Add music
+7. Add overlays
+8. Export MP4
+
+--------------------------------------------------
+RATIO SUPPORT
+--------------------------------------------------
+
+Support:
+- 16:9
+- 9:16
+- 1:1
+
+Platforms:
+- YouTube Long
+- YouTube Shorts
+- Instagram Reels
+- TikTok
+- Facebook
+
+--------------------------------------------------
+PAYMENT SYSTEM
+--------------------------------------------------
+
+Prepare Razorpay subscriptions.
+
+Plans:
+- ₹199/month
+- ₹399/month
+- ₹799/month
+
+Subscriptions should:
+- auto-activate plans
+- auto-add credits
+- store billing history
+
+--------------------------------------------------
+ADMIN PANEL SUPPORT
+--------------------------------------------------
+
+Prepare backend support for:
+- user management
+- credit management
+- plan editing
+- API usage monitoring
+- generation logs
+- banners
+- notifications later
+
+--------------------------------------------------
+ENGINEERING RULES
+--------------------------------------------------
+
+- NO hardcoded values
+- Everything config-based
+- scalable architecture
+- secure authentication
+- Android sync ready
+- production-ready APIs
+
+--------------------------------------------------
+FINAL GOAL
+--------------------------------------------------
+
+VirJoy AI should become a scalable cinematic AI SaaS platform where:
+- prompt is the main input
+- uploads are optional support media
+- credits sync across web and Android
+- subscriptions sync automatically
+- dual authentication prevents fake accounts
+- backend remains profitable and scalable

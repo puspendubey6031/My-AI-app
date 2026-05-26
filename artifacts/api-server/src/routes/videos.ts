@@ -7,6 +7,12 @@ import { eq } from "drizzle-orm";
 import { PLAN_MAP, VALID_PLANS, VALID_DURATIONS } from "../config/plans";
 import { processVideo } from "../lib/videoProcessor";
 import { logger } from "../lib/logger";
+import { optionalAuth } from "../middleware/auth";
+import {
+  calculateCreditCost,
+  hasSufficientCredits,
+  deductCredits,
+} from "../services/credits";
 
 const router = Router();
 
@@ -39,21 +45,14 @@ const upload = multer({
   },
 });
 
-/**
- * Auto-detect video style from the user's prompt using keyword matching.
- * Returns one of the valid video types.
- */
 function detectVideoType(prompt: string): "ad" | "horror" | "promo" | "vlog" {
   const lower = prompt.toLowerCase();
-  if (/horror|scary|dark|thriller|spooky|terror|ghost|nightmare|creepy|eerie|sinister/.test(lower)) {
+  if (/horror|scary|dark|thriller|spooky|terror|ghost|nightmare|creepy|eerie|sinister/.test(lower))
     return "horror";
-  }
-  if (/vlog|lifestyle|personal|daily|routine|travel|diary|day in|my life|behind the scenes/.test(lower)) {
+  if (/vlog|lifestyle|personal|daily|routine|travel|diary|day in|my life|behind the scenes/.test(lower))
     return "vlog";
-  }
-  if (/\bad\b|commercial|advertisement|product launch|sell|buy|sale|offer|deal|discount/.test(lower)) {
+  if (/\bad\b|commercial|advertisement|product launch|sell|buy|sale|offer|deal|discount/.test(lower))
     return "ad";
-  }
   return "promo";
 }
 
@@ -82,6 +81,7 @@ router.get("/videos/summary", async (req, res) => {
 // POST /api/videos
 router.post(
   "/videos",
+  optionalAuth,
   upload.fields([
     { name: "images", maxCount: 10 },
     { name: "clips", maxCount: 20 },
@@ -104,7 +104,6 @@ router.post(
       return;
     }
 
-    // Resolve video type: explicit selection > auto-detected from prompt > default promo
     const videoType: "ad" | "horror" | "promo" | "vlog" =
       explicitType && ["ad", "horror", "promo", "vlog"].includes(explicitType)
         ? (explicitType as "ad" | "horror" | "promo" | "vlog")
@@ -129,6 +128,29 @@ router.post(
       return;
     }
 
+    // Credit check — only for authenticated users
+    const user = req.user;
+    let creditCost = 0;
+
+    if (user) {
+      creditCost = calculateCreditCost({
+        duration: durationNum,
+        clipCount: clips.length,
+        plan,
+      });
+
+      const sufficient = await hasSufficientCredits(user.id, creditCost);
+      if (!sufficient) {
+        res.status(402).json({
+          error: "Insufficient credits",
+          required: creditCost,
+          available: user.credits,
+          message: `This video costs ${creditCost} credits. You have ${user.credits}. Please upgrade your plan or wait for monthly credits.`,
+        });
+        return;
+      }
+    }
+
     const [job] = await db
       .insert(videoJobsTable)
       .values({
@@ -144,10 +166,13 @@ router.post(
       })
       .returning();
 
-    req.log.info({ jobId: job.id, videoType, hasPrompt: !!prompt }, "Video job created");
+    req.log.info(
+      { jobId: job.id, videoType, hasPrompt: !!prompt, userId: user?.id, creditCost },
+      "Video job created",
+    );
     res.status(201).json(formatJob(job));
 
-    // Process async
+    // Async processing — deduct credits only on success
     setImmediate(async () => {
       try {
         await db
@@ -174,9 +199,20 @@ router.post(
           .set({ status: "done", outputPath, outputUrl, updatedAt: new Date() })
           .where(eq(videoJobsTable.id, job.id));
 
-        logger.info({ jobId: job.id }, "Video job completed");
+        // Deduct credits after confirmed success
+        if (user && creditCost > 0) {
+          await deductCredits({
+            userId: user.id,
+            cost: creditCost,
+            jobId: job.id,
+            action: "generate_video",
+            description: `Generated ${durationNum}s ${videoType} video (${clips.length} clips)`,
+          });
+        }
+
+        logger.info({ jobId: job.id, userId: user?.id, creditCost }, "Video job completed");
       } catch (err) {
-        logger.error({ err, jobId: job.id }, "Video job failed");
+        logger.error({ err, jobId: job.id }, "Video job failed — no credits deducted");
         await db
           .update(videoJobsTable)
           .set({
@@ -185,6 +221,7 @@ router.post(
             updatedAt: new Date(),
           })
           .where(eq(videoJobsTable.id, job.id));
+        // No credit deduction on failure (as per spec)
       }
     });
   },

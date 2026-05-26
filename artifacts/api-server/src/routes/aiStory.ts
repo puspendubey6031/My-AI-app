@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { ai } from "@workspace/integrations-gemini-ai";
+import { requireAuth, requireMobileVerified } from "../middleware/auth";
+import { hasSufficientCredits, deductCredits, CREDIT_COSTS } from "../services/credits";
 
 const router = Router();
 
@@ -14,6 +16,21 @@ router.post("/ai/story", async (req, res) => {
   if (plan !== "premium") {
     res.status(403).json({ error: "AI story generation requires the Premium plan" });
     return;
+  }
+
+  // Credit check for authenticated users
+  const user = req.user;
+  if (user) {
+    const sufficient = await hasSufficientCredits(user.id, CREDIT_COSTS.aiStory);
+    if (!sufficient) {
+      res.status(402).json({
+        error: "Insufficient credits",
+        required: CREDIT_COSTS.aiStory,
+        available: user.credits,
+        message: `AI story generation costs ${CREDIT_COSTS.aiStory} credits. You have ${user.credits}.`,
+      });
+      return;
+    }
   }
 
   const systemPrompt = `You are a professional cinematic video script writer for VirJoy AI.
@@ -81,10 +98,19 @@ Make it cinematic, specific, and compelling.`;
       return;
     }
 
-    // Ensure detectedType is valid
     const validTypes = ["ad", "horror", "promo", "vlog"];
     if (!validTypes.includes(parsed.detectedType)) {
       parsed.detectedType = "promo";
+    }
+
+    // Deduct credits after confirmed success
+    if (user) {
+      await deductCredits({
+        userId: user.id,
+        cost: CREDIT_COSTS.aiStory,
+        action: "ai_story",
+        description: "Gemini AI cinematic story generation",
+      });
     }
 
     res.json(parsed);

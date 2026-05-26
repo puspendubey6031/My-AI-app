@@ -8,7 +8,9 @@ export interface PlanConfig {
   watermark: boolean;
   quality: "low" | "standard" | "high";
   aiStory: boolean;
+  monthlyCredits: number;
   description: string;
+  features: string[];
 }
 
 export const PLANS: PlanConfig[] = [
@@ -22,7 +24,14 @@ export const PLANS: PlanConfig[] = [
     watermark: true,
     quality: "low",
     aiStory: false,
-    description: "Get started with basic cinematic video creation for free",
+    monthlyCredits: 5,
+    description: "5 free credits every 30 days to get started",
+    features: [
+      "Prompt-Based Generation",
+      "Basic Templates",
+      "Local Rendering Only",
+      "Watermarked Output",
+    ],
   },
   {
     id: "starter",
@@ -34,7 +43,14 @@ export const PLANS: PlanConfig[] = [
     watermark: false,
     quality: "standard",
     aiStory: false,
-    description: "Monthly subscription for basic cinematic video creation",
+    monthlyCredits: 50,
+    description: "50 credits/month for growing creators",
+    features: [
+      "Prompt-Based Video Creation",
+      "Smart Template Matching",
+      "No Watermark",
+      "Standard Quality",
+    ],
   },
   {
     id: "creator",
@@ -46,7 +62,14 @@ export const PLANS: PlanConfig[] = [
     watermark: false,
     quality: "high",
     aiStory: false,
-    description: "Monthly subscription with enhanced effects and smart AI tools",
+    monthlyCredits: 150,
+    description: "150 credits/month with enhanced cinematic effects",
+    features: [
+      "Enhanced Cinematic Effects",
+      "Smart AI Assistance",
+      "Priority Rendering",
+      "High Quality Output",
+    ],
   },
   {
     id: "premium",
@@ -58,7 +81,14 @@ export const PLANS: PlanConfig[] = [
     watermark: false,
     quality: "high",
     aiStory: true,
-    description: "Monthly subscription with full AI idea-to-video generation",
+    monthlyCredits: 400,
+    description: "400 credits/month with full Gemini AI story generation",
+    features: [
+      "Full Gemini AI Story Generation",
+      "Cinematic AI Scene Building",
+      "Commercial Use License",
+      "Fastest Rendering",
+    ],
   },
 ];
 

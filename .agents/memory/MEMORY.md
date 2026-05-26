@@ -1,0 +1,1 @@
+- [Drizzle-ORM dual instance fix](drizzle-firebase-dedup.md) — firebase-admin causes two drizzle-orm copies; fix via pnpm-workspace.yaml override.
