@@ -1,0 +1,98 @@
+IMPORTANT BACKEND STORAGE OPTIMIZATION RULE
+
+Add automatic storage cleanup logic to VirJoy AI backend.
+
+--------------------------------------------------
+VIDEO STORAGE RULE
+--------------------------------------------------
+
+Generated videos should NOT stay permanently on the server.
+
+After a user:
+1. generates a video
+2. previews/downloads the video
+
+the backend should automatically delete:
+- generated video files
+- temporary render files
+- cached media
+- FFmpeg temp output
+
+after 24 hours.
+
+--------------------------------------------------
+AUTO DELETE SYSTEM
+--------------------------------------------------
+
+Create an automatic cleanup scheduler/cron job.
+
+Requirements:
+- scan output folder
+- detect files older than 24 hours
+- automatically delete expired files
+
+Delete:
+- generated MP4 files
+- temporary rendering assets
+- cached exports
+- unused render data
+
+--------------------------------------------------
+IMPORTANT USER RULE
+--------------------------------------------------
+
+Users should NOT have permanent video history storage.
+
+After 24 hours:
+- download links expire
+- preview links expire
+- old generated videos are deleted automatically
+
+Only lightweight generation logs remain in database:
+- prompt
+- date
+- credits used
+
+Do NOT permanently store heavy video files.
+
+--------------------------------------------------
+BENEFITS
+--------------------------------------------------
+
+This system is required to:
+- reduce backend server load
+- reduce storage costs
+- improve scalability
+- prevent unnecessary file accumulation
+
+--------------------------------------------------
+DATABASE RULE
+--------------------------------------------------
+
+Keep only metadata:
+- generation history
+- prompt history
+- timestamps
+- credits used
+
+Delete actual media/output files after 24 hours.
+
+--------------------------------------------------
+TECHNICAL REQUIREMENTS
+--------------------------------------------------
+
+Use:
+- scheduled cleanup service
+- cron jobs
+- automatic file expiration logic
+
+Folders to monitor:
+- /output
+- /temp
+- /cache
+
+--------------------------------------------------
+FINAL GOAL
+--------------------------------------------------
+
+VirJoy AI should remain lightweight, scalable, and low-cost by automatically removing generated video files after 24 hours while preserving only minimal history metadata.

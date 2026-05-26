@@ -278,7 +278,20 @@ router.get("/videos/file/:filename", async (req, res) => {
     const { createReadStream } = await import("fs");
     createReadStream(filePath).pipe(res);
   } catch {
-    res.status(404).json({ error: "File not found" });
+    // Check if this file belonged to an expired job
+    const [expired] = await db
+      .select({ status: videoJobsTable.status })
+      .from(videoJobsTable)
+      .where(eq(videoJobsTable.status, "expired"));
+
+    if (expired) {
+      res.status(410).json({
+        error: "Video expired",
+        message: "Generated videos are automatically removed after 24 hours. Please generate a new video.",
+      });
+    } else {
+      res.status(404).json({ error: "File not found" });
+    }
   }
 });
 
