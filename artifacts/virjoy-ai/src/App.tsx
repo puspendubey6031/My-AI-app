@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter, Link, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,21 +12,38 @@ const queryClient = new QueryClient();
 
 function Navbar() {
   const [location] = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-md">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
-            <Sparkles className="w-5 h-5 text-primary" />
+    <nav 
+      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+        scrolled 
+          ? "bg-background/80 backdrop-blur-xl border-b border-primary/20 shadow-[0_4px_30px_-10px_rgba(var(--primary),0.2)]" 
+          : "bg-transparent border-b border-transparent"
+      }`}
+    >
+      <div className="container mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary via-primary to-cyan-500 flex items-center justify-center shadow-lg shadow-primary/25">
+            <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <span className="font-bold text-lg tracking-tight bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent">VirJoy AI</span>
+          <span className="font-black text-2xl tracking-tight bg-gradient-to-r from-white to-primary bg-clip-text text-transparent">
+            VirJoy AI
+          </span>
         </div>
-        <div className="flex items-center gap-1">
-          <Link href="/" className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${location === "/" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"}`}>
+        <div className="flex items-center gap-2">
+          <Link href="/" className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${location === "/" ? "bg-white/10 text-white shadow-inner" : "text-white/60 hover:text-white hover:bg-white/5"}`}>
             <span className="flex items-center gap-2"><Video className="w-4 h-4" /> Studio</span>
           </Link>
-          <Link href="/history" className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${location === "/history" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"}`}>
+          <Link href="/history" className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${location === "/history" ? "bg-white/10 text-white shadow-inner" : "text-white/60 hover:text-white hover:bg-white/5"}`}>
             <span className="flex items-center gap-2"><History className="w-4 h-4" /> History</span>
           </Link>
         </div>
@@ -36,9 +54,10 @@ function Navbar() {
 
 function Router() {
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
+    <div className="min-h-[100dvh] bg-background text-foreground selection:bg-primary/30 relative">
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background -z-10 pointer-events-none" />
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
+      <main>
         <Switch>
           <Route path="/" component={Studio} />
           <Route path="/history" component={HistoryPage} />

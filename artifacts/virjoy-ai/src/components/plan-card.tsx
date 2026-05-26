@@ -1,91 +1,129 @@
 import { motion } from "framer-motion";
 import { Plan } from "@workspace/api-client-react";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PlanCardProps {
   plan: Plan;
-  isSelected: boolean;
-  onSelect: () => void;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  displayOnly?: boolean;
 }
 
-export function PlanCard({ plan, isSelected, onSelect }: PlanCardProps) {
+export function PlanCard({ plan, isSelected, onSelect, displayOnly = false }: PlanCardProps) {
   const isPremium = plan.id === "premium";
+
+  const getExtraBullets = (id: string) => {
+    switch (id) {
+      case "free":
+      case "starter":
+        return [
+          "Form-Based Video Creation",
+          "No AI Story Generation"
+        ];
+      case "creator":
+        return [
+          "Enhanced Cinematic Effects",
+          "Smart AI Assistance"
+        ];
+      case "premium":
+        return [
+          "AI Idea-to-Video Generation",
+          "Automatic Story + Scene Creation"
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const extraBullets = getExtraBullets(plan.id);
 
   return (
     <motion.div
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onSelect}
+      whileHover={!displayOnly ? { y: -4 } : undefined}
+      whileTap={!displayOnly ? { scale: 0.98 } : undefined}
+      onClick={!displayOnly ? onSelect : undefined}
       className={cn(
-        "relative p-6 rounded-2xl border cursor-pointer transition-all duration-200 overflow-hidden flex flex-col h-full",
-        isSelected
-          ? "bg-primary/10 border-primary ring-1 ring-primary/50 shadow-[0_0_30px_-10px_rgba(var(--primary),0.3)]"
-          : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+        "relative p-8 rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col h-full",
+        !displayOnly && "cursor-pointer",
+        isSelected && !displayOnly
+          ? "bg-primary/10 border-primary ring-1 ring-primary/50 shadow-[0_0_40px_-10px_rgba(var(--primary),0.4)]"
+          : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 hover:shadow-2xl hover:shadow-primary/5"
       )}
     >
       {isPremium && (
         <div className="absolute top-0 right-0">
-          <div className="bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1 rounded-bl-lg flex items-center gap-1 uppercase tracking-wider">
-            <Sparkles className="w-3 h-3" />
+          <div className="bg-gradient-to-r from-primary to-cyan-500 text-white text-[11px] font-bold px-4 py-1.5 rounded-bl-xl flex items-center gap-1.5 uppercase tracking-widest shadow-lg">
+            <Sparkles className="w-3.5 h-3.5" />
             Most Popular
           </div>
         </div>
       )}
 
-      {isSelected && (
-        <div className="absolute -inset-px bg-gradient-to-b from-primary/20 to-transparent rounded-2xl pointer-events-none" />
+      {isSelected && !displayOnly && (
+        <div className="absolute -inset-px bg-gradient-to-b from-primary/20 to-transparent rounded-3xl pointer-events-none" />
       )}
 
-      <div className="mb-4 relative z-10">
-        <h3 className="text-xl font-bold capitalize mb-1">{plan.name}</h3>
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-bold tracking-tight">
+      <div className="mb-6 relative z-10">
+        <h3 className="text-2xl font-black capitalize mb-2 tracking-tight">{plan.name}</h3>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-4xl font-black tracking-tighter">
             {plan.price === 0 ? "Free" : `₹${plan.price}`}
           </span>
-          {plan.price > 0 && <span className="text-sm text-muted-foreground">/video</span>}
+          {plan.price > 0 && <span className="text-sm font-medium text-white/50">/video</span>}
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground mb-6 flex-grow relative z-10">
+      <p className="text-sm text-white/60 mb-8 flex-grow relative z-10 leading-relaxed">
         {plan.description || `Perfect for ${plan.name} creations.`}
       </p>
 
-      <ul className="space-y-3 mb-6 relative z-10">
-        <li className="flex items-start gap-2 text-sm">
-          <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-          <span>Up to {plan.maxDuration}s duration</span>
+      <ul className="space-y-4 mb-8 relative z-10">
+        <li className="flex items-start gap-3 text-sm">
+          <Check className="w-5 h-5 text-primary shrink-0" />
+          <span className="text-white/80">Up to <strong className="text-white">{plan.maxDuration}s</strong> duration</span>
         </li>
-        <li className="flex items-start gap-2 text-sm">
-          <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-          <span>Max {plan.maxImages} images, {plan.maxClips} clips</span>
+        <li className="flex items-start gap-3 text-sm">
+          <Check className="w-5 h-5 text-primary shrink-0" />
+          <span className="text-white/80">Max <strong className="text-white">{plan.maxImages}</strong> images, <strong className="text-white">{plan.maxClips}</strong> clips</span>
         </li>
-        <li className="flex items-start gap-2 text-sm">
-          <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-          <span>{plan.quality} quality</span>
+        <li className="flex items-start gap-3 text-sm">
+          <Check className="w-5 h-5 text-primary shrink-0" />
+          <span className="text-white/80"><strong className="text-white capitalize">{plan.quality}</strong> quality</span>
         </li>
+        
         {plan.aiStory && (
-          <li className="flex items-start gap-2 text-sm font-medium text-primary">
-            <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>AI Story Generation</span>
+          <li className="flex items-start gap-3 text-sm font-medium">
+            <Sparkles className="w-5 h-5 text-cyan-400 shrink-0" />
+            <span className="text-cyan-400">AI Story Generation</span>
           </li>
         )}
+        
         {!plan.watermark && (
-          <li className="flex items-start gap-2 text-sm">
-            <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-            <span>No Watermark</span>
+          <li className="flex items-start gap-3 text-sm">
+            <Check className="w-5 h-5 text-primary shrink-0" />
+            <span className="text-white/80">No Watermark</span>
           </li>
         )}
+
+        {extraBullets.map((bullet, i) => (
+          <li key={i} className="flex items-start gap-3 text-sm">
+            <Star className="w-4 h-4 text-primary/70 shrink-0 mt-0.5" />
+            <span className="text-white/70">{bullet}</span>
+          </li>
+        ))}
       </ul>
       
-      <div className={cn(
-        "w-full py-2.5 rounded-lg text-center text-sm font-medium transition-colors relative z-10",
-        isSelected 
-          ? "bg-primary text-primary-foreground" 
-          : "bg-white/10 text-white group-hover:bg-white/20"
-      )}>
-        {isSelected ? "Selected" : "Select Plan"}
-      </div>
+      {!displayOnly && (
+        <div className={cn(
+          "w-full py-3.5 rounded-xl text-center text-sm font-bold transition-all duration-300 relative z-10",
+          isSelected 
+            ? "bg-primary text-white shadow-lg shadow-primary/25" 
+            : "bg-white/10 text-white group-hover:bg-white/20"
+        )}>
+          {isSelected ? "Selected" : "Select Plan"}
+        </div>
+      )}
     </motion.div>
   );
 }
