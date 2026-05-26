@@ -1,0 +1,133 @@
+Build a full working web app named:
+
+"VirJoy AI"
+
+---
+
+CORE IDEA:
+VirJoy AI is a simple form-based AI video creation web app.
+
+Users do NOT design videos manually.
+They only fill a FORM and upload optional media.
+
+---
+
+USER INPUT FORM:
+
+1. Title / Idea text (optional)
+2. Video type:
+   - Ad
+   - Horror
+   - Promo
+   - Vlog
+3. Duration:
+   - 10 seconds
+   - 30 seconds
+   - 1 minute
+   - 3 minutes
+4. Upload Images (optional, max 1–3)
+5. Upload short video clips (optional, max 10 seconds each)
+
+---
+
+IMPORTANT RULES:
+
+- Only use user-provided images and video clips
+- Do NOT fetch external media
+- Do NOT replace user content
+- System must only enhance user input with effects
+
+---
+
+VIDEO GENERATION LOGIC:
+
+1. Read form input
+2. Detect video type (ad/horror/promo/vlog)
+3. Select matching template automatically
+4. Arrange user images and clips in timeline
+5. Apply cinematic effects:
+   - zoom in/out
+   - fade transitions
+   - pan motion
+6. Add background music based on video type
+7. Combine everything using FFmpeg
+8. Export final MP4 video
+
+---
+
+PLAN SYSTEM:
+
+🟢 FREE PLAN:
+- 1 image only
+- 1 clip only (10 sec max)
+- 10–30 sec video
+- watermark ON
+- low quality export
+
+🟡 STARTER PLAN (₹199):
+- up to 1 minute video
+- 1–3 images allowed
+- multiple 10 sec clips allowed
+- watermark OFF
+- standard quality
+
+🔵 CREATOR PLAN (₹399):
+- up to 2 minute video
+- better templates
+- faster processing
+- high quality export
+
+🔴 PREMIUM PLAN (₹799):
+- up to 3 minute video
+- AI IDEA BOX UNLOCKED (premium only)
+- user can enter only idea, AI generates full story + scene plan
+- priority processing
+- commercial use allowed
+
+---
+
+AI LOGIC RULE:
+
+- Free + Starter: NO AI story generation (only templates)
+- Creator: light AI assistance (basic template optimization)
+- Premium: FULL AI STORY + SCENE generation using Gemini API
+
+---
+
+TECH STACK:
+
+- Node.js + Express backend
+- FFmpeg for video rendering
+- Multer for file uploads
+- Local storage (/uploads, /output)
+- Config-based system (NO hardcoded limits)
+
+---
+
+CONFIG REQUIREMENT:
+
+All limits must be controlled via a config file:
+- plan limits
+- credits
+- duration limits
+- features
+
+No hardcoded restrictions in code.
+
+---
+
+UI REQUIREMENTS:
+
+Single-page clean interface:
+- Input form (text + type + duration)
+- Upload section (images + clips)
+- Plan display (Free / ₹199 / ₹399 / ₹799)
+- Generate button
+- Video preview player
+- Download button
+
+---
+
+FINAL GOAL:
+
+A lightweight, scalable, form-based AI video generator (VirJoy AI) that converts user inputs into cinematic videos with plan-based feature control.

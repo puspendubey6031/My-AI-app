@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: VirJoy AI — form-based AI video creation API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: videos
+    description: Video job operations
+  - name: plans
+    description: Plan configuration
+  - name: ai
+    description: AI assistance (premium)
 paths:
   /healthz:
     get:
@@ -24,6 +30,146 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /videos:
+    get:
+      operationId: listVideos
+      tags: [videos]
+      summary: List all video jobs
+      responses:
+        "200":
+          description: List of video jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoJob"
+    post:
+      operationId: createVideoJob
+      tags: [videos]
+      summary: Create and queue a video generation job
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/VideoJobInput"
+      responses:
+        "201":
+          description: Job created and queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoJob"
+        "400":
+          description: Invalid input or plan limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /videos/{id}:
+    get:
+      operationId: getVideo
+      tags: [videos]
+      summary: Get a specific video job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Video job details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoJob"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteVideo
+      tags: [videos]
+      summary: Delete a video job and its files
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /videos/summary:
+    get:
+      operationId: getVideosSummary
+      tags: [videos]
+      summary: Get summary stats (total jobs, by status, by type)
+      responses:
+        "200":
+          description: Summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideosSummary"
+
+  /plans:
+    get:
+      operationId: getPlans
+      tags: [plans]
+      summary: Get all plan configurations
+      responses:
+        "200":
+          description: Plan list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+
+  /ai/story:
+    post:
+      operationId: generateAiStory
+      tags: [ai]
+      summary: Generate a full story and scene plan from an idea (Premium only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoryInput"
+      responses:
+        "200":
+          description: Generated story and scene plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoryResult"
+        "403":
+          description: Premium plan required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +180,163 @@ components:
       required:
         - status
 
+    VideoJob:
+      type: object
+      required: [id, videoType, duration, plan, status, hasWatermark, createdAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: ["string", "null"]
+        videoType:
+          type: string
+          enum: [ad, horror, promo, vlog]
+        duration:
+          type: integer
+          description: Duration in seconds (10, 30, 60, 180)
+        plan:
+          type: string
+          enum: [free, starter, creator, premium]
+        status:
+          type: string
+          enum: [queued, processing, done, failed]
+        hasWatermark:
+          type: boolean
+        outputUrl:
+          type: ["string", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        imageCount:
+          type: integer
+        clipCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    VideoJobInput:
+      type: object
+      required: [videoType, duration, plan]
+      properties:
+        title:
+          type: string
+        videoType:
+          type: string
+          enum: [ad, horror, promo, vlog]
+        duration:
+          type: integer
+          description: Duration in seconds
+        plan:
+          type: string
+          enum: [free, starter, creator, premium]
+        images:
+          type: array
+          items:
+            type: string
+            format: binary
+        clips:
+          type: array
+          items:
+            type: string
+            format: binary
+
+    VideosSummary:
+      type: object
+      required: [total, byStatus, byType, byPlan]
+      properties:
+        total:
+          type: integer
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        byType:
+          type: object
+          additionalProperties:
+            type: integer
+        byPlan:
+          type: object
+          additionalProperties:
+            type: integer
+
+    Plan:
+      type: object
+      required: [id, name, price, maxImages, maxClips, maxDuration, watermark, quality, aiStory]
+      properties:
+        id:
+          type: string
+          enum: [free, starter, creator, premium]
+        name:
+          type: string
+        price:
+          type: integer
+          description: Price in INR (0 = free)
+        maxImages:
+          type: integer
+        maxClips:
+          type: integer
+        maxDuration:
+          type: integer
+          description: Max duration in seconds
+        watermark:
+          type: boolean
+        quality:
+          type: string
+          enum: [low, standard, high]
+        aiStory:
+          type: boolean
+        description:
+          type: string
+
+    StoryInput:
+      type: object
+      required: [idea, videoType]
+      properties:
+        idea:
+          type: string
+        videoType:
+          type: string
+          enum: [ad, horror, promo, vlog]
+
+    StoryResult:
+      type: object
+      required: [title, story, scenes]
+      properties:
+        title:
+          type: string
+        story:
+          type: string
+        scenes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Scene"
+
+    Scene:
+      type: object
+      required: [index, description, duration, effect]
+      properties:
+        index:
+          type: integer
+        description:
+          type: string
+        duration:
+          type: integer
+        effect:
+          type: string
+
+    DeleteResult:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

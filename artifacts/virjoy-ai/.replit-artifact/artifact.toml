@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "VirJoy AI"
+version = "1.0.0"
+id = "artifacts/virjoy-ai"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25936
+
+[services.development]
+run = "pnpm --filter @workspace/virjoy-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/virjoy-ai", "run", "build" ]
+publicDir = "artifacts/virjoy-ai/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25936"
+BASE_PATH = "/"
