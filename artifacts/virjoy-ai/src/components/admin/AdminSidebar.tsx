@@ -9,7 +9,7 @@ const AdminSidebar: React.FC = () => {
         <NavLink to="/admin/dashboard" className="block px-4 py-2 rounded hover:bg-gray-700">Dashboard</NavLink>
         <NavLink to="/admin/users" className="block px-4 py-2 rounded hover:bg-gray-700">Users</NavLink>
         <NavLink to="/admin/plans" className="block px-4 py-2 rounded hover:bg-gray-700">Plans</NavLink>
-        <NavLink to="/admin/payments" className="block px-4 py-2 rounded hover:bg-ray-700">Payments</NavLink>
+        <NavLink to="/admin/payments" className="block px-4 py-2 rounded hover:bg-gray-700">Payments</NavLink>
         <NavLink to="/admin/history" className="block px-4 py-2 rounded hover:bg-gray-700">History</NavLink>
         <NavLink to="/admin/subscriptions" className="block px-4 py-2 rounded hover:bg-gray-700">Subscriptions</NavLink>
         <NavLink to="/admin/banner-ads" className="block px-4 py-2 rounded hover:bg-gray-700">Banner Ads</NavLink>
