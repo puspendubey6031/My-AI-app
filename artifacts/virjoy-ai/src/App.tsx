@@ -33,6 +33,7 @@ import Plans from "@/pages/admin/Plans";
 import Payments from "@/pages/admin/Payments";
 import Subscriptions from "@/pages/admin/Subscriptions";
 import BannerAds from "@/pages/admin/BannerAds";
+import AdminHistoryPage from "@/pages/admin/History";
 
 const queryClient = new QueryClient();
 
@@ -321,6 +322,7 @@ function Router() {
                 <AdminRoute path="/admin/users/:id" component={UserDetail} />
                 <AdminRoute path="/admin/plans" component={Plans} />
                 <AdminRoute path="/admin/payments" component={Payments} />
+                <AdminRoute path="/admin/history" component={AdminHistoryPage} />
                 <AdminRoute path="/admin/subscriptions" component={Subscriptions} />
                 <AdminRoute path="/admin/banner-ads" component={BannerAds} />
             </Switch>
