@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Users, CreditCard, DollarSign, Clock, Star, Image, Bell } from 'lucide-react';
+import { Home, Users, CreditCard, DollarSign, Clock, Star, Image, Bell, Settings } from 'lucide-react';
 
 const AdminSidebar: React.FC = () => {
   return (
@@ -38,6 +38,10 @@ const AdminSidebar: React.FC = () => {
         <NavLink to="/admin/notifications" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
           <Bell className="w-5 h-5 mr-2" />
           Notifications
+        </NavLink>
+        <NavLink to="/admin/settings" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
+          <Settings className="w-5 h-5 mr-2" />
+          Settings
         </NavLink>
       </nav>
     </div>

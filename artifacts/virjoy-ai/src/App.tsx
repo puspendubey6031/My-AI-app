@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+himport { useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter, Link, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -35,6 +35,7 @@ import Subscriptions from "@/pages/admin/Subscriptions";
 import BannerAds from "@/pages/admin/BannerAds";
 import AdminHistoryPage from "@/pages/admin/History";
 import Notifications from "@/pages/admin/Notifications";
+import Settings from "@/pages/admin/Settings";
 
 const queryClient = new QueryClient();
 
@@ -327,6 +328,7 @@ function Router() {
                 <AdminRoute path="/admin/subscriptions" component={Subscriptions} />
                 <AdminRoute path="/admin/banner-ads" component={BannerAds} />
                 <AdminRoute path="/admin/notifications" component={Notifications} />
+                <AdminRoute path="/admin/settings" component={Settings} />
             </Switch>
           </AdminLayout>
         </Route>
