@@ -13,6 +13,7 @@ const AdminSidebar: React.FC = () => {
         <NavLink to="/admin/history" className="block px-4 py-2 rounded hover:bg-gray-700">History</NavLink>
         <NavLink to="/admin/subscriptions" className="block px-4 py-2 rounded hover:bg-gray-700">Subscriptions</NavLink>
         <NavLink to="/admin/banner-ads" className="block px-4 py-2 rounded hover:bg-gray-700">Banner Ads</NavLink>
+        <NavLink to="/admin/notifications" className="block px-4 py-2 rounded hover:bg-gray-700">Notifications</NavLink>
       </nav>
     </div>
   );
