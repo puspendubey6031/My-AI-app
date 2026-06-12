@@ -1,128 +1,147 @@
-import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
-import { Save, Key, Coins, Wrench } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'react-hot-toast';
 
-export default function Settings() {
-  const [settings, setSettings] = useState({
-    openai_key: '',
-    replicate_key: '',
-    default_credits: 100,
-    per_video_cost: 10,
-    maintenance_mode: false
-  })
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+// Define a type for your settings for stronger type checking
+type AppSettings = {
+  maintenance_mode: boolean;
+  new_user_credits: number;
+  max_video_duration: number; // in seconds
+  // Add any other settings you might have
+};
+
+const AdminSettings: React.FC = () => {
+  // Initialize state with a structure that matches your settings
+  const [settings, setSettings] = useState<AppSettings>({
+    maintenance_mode: false,
+    new_user_credits: 10,
+    max_video_duration: 300,
+  });
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    loadSettings()
-  }, [])
+    fetchSettings();
+  }, []);
 
-  const loadSettings = async () => {
-    const { data } = await supabase.from('app_settings').select('*').eq('id', 1).single()
-    if (data) setSettings(data)
-    setLoading(false)
+  const fetchSettings = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('*')
+        .single(); // Assuming you have a single row for settings
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116: single row not found
+        throw error;
+      }
+      if (data) {
+        setSettings(data);
+      }
+    } catch (error: any) {
+      toast.error(`Error fetching settings: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Use upsert to create settings if they don't exist, or update if they do.
+      // This requires a primary key on the table, e.g., a 'id' field with a default value.
+      const { error } = await supabase.from('app_settings').upsert(settings, {
+        onConflict: 'id', // Replace 'id' with your actual primary key column
+      });
+
+      if (error) {
+        throw error;
+      }
+      toast.success('Settings saved successfully!');
+    } catch (error: any) {
+      toast.error(`Error saving settings: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setSettings(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value),
+    }));
+  };
+
+  if (loading) {
+    return <div>Loading settings...</div>;
   }
-
-  const saveSettings = async () => {
-    setSaving(true)
-    const { error } = await supabase
-      .from('app_settings')
-      .update({ ...settings, updated_at: new Date() })
-      .eq('id', 1)
-    
-    if (error) alert('Error: ' + error.message)
-    else alert('Settings saved!')
-    setSaving(false)
-  }
-
-  if (loading) return <div className="p-6 text-white">Loading...</div>
 
   return (
-    <div className="p-6 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6 text-white">API & App Settings</h1>
-      
-      <div className="bg-gray-800 rounded-lg p-6 space-y-6">
-        <div>
-          <div className="flex items-center mb-3">
-            <Key className="w-5 h-5 mr-2 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">API Keys</h2>
-          </div>
-          <div className="space-y-4">
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Application Settings</h1>
+      <div className="bg-white p-8 rounded-lg shadow-md">
+        <div className="space-y-6">
+          {/* Maintenance Mode */}
+          <div className="flex items-center justify-between border-b pb-4">
             <div>
-              <label className="text-gray-300 text-sm">OpenAI API Key</label>
-              <input 
-                type="password"
-                value={settings.openai_key || ''}
-                onChange={(e) => setSettings({...settings, openai_key: e.target.value})}
-                className="w-full bg-gray-900 text-white p-2 rounded mt-1 border border-gray-700"
-                placeholder="sk-..."
-              />
+              <h2 className="text-lg font-semibold">Maintenance Mode</h2>
+              <p className="text-sm text-gray-500">Temporarily disable user access to the app.</p>
             </div>
-            <div>
-              <label className="text-gray-300 text-sm">Replicate API Key</label>
+            <label htmlFor="maintenance-toggle" className="inline-flex relative items-center cursor-pointer">
               <input 
-                type="password"
-                value={settings.replicate_key || ''}
-                onChange={(e) => setSettings({...settings, replicate_key: e.target.value})}
-                className="w-full bg-gray-900 text-white p-2 rounded mt-1 border border-gray-700"
-                placeholder="r8_..."
+                type="checkbox" 
+                id="maintenance-toggle" 
+                name="maintenance_mode"
+                className="sr-only peer"
+                checked={settings.maintenance_mode}
+                onChange={handleChange}
               />
-            </div>
+              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            </label>
           </div>
-        </div>
 
-        <div>
-          <div className="flex items-center mb-3">
-            <Coins className="w-5 h-5 mr-2 text-yellow-400" />
-            <h2 className="text-lg font-semibold text-white">Credits Settings</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-gray-300 text-sm">Default Credits for New User</label>
-              <input 
-                type="number"
-                value={settings.default_credits}
-                onChange={(e) => setSettings({...settings, default_credits: Number(e.target.value)})}
-                className="w-full bg-gray-900 text-white p-2 rounded mt-1 border border-gray-700"
-              />
-            </div>
-            <div>
-              <label className="text-gray-300 text-sm">Credits Cost Per Video</label>
-              <input 
-                type="number"
-                value={settings.per_video_cost}
-                onChange={(e) => setSettings({...settings, per_video_cost: Number(e.target.value)})}
-                className="w-full bg-gray-900 text-white p-2 rounded mt-1 border border-gray-700"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center mb-3">
-            <Wrench className="w-5 h-5 mr-2 text-red-400" />
-            <h2 className="text-lg font-semibold text-white">Maintenance</h2>
-          </div>
-          <label className="flex items-center cursor-pointer">
+          {/* New User Credits */}
+          <div className="border-b pb-4">
+            <label htmlFor="new-user-credits" className="block text-lg font-semibold mb-2">New User Credits</label>
+            <p className="text-sm text-gray-500 mb-2">The number of credits a new user gets upon signing up.</p>
             <input 
-              type="checkbox"
-              checked={settings.maintenance_mode}
-              onChange={(e) => setSettings({...settings, maintenance_mode: e.target.checked})}
-              className="w-4 h-4 mr-2"
+              type="number" 
+              id="new-user-credits"
+              name="new_user_credits"
+              value={settings.new_user_credits}
+              onChange={handleChange}
+              className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
-            <span className="text-gray-300">Enable Maintenance Mode</span>
-          </label>
+          </div>
+
+          {/* Max Video Duration */}
+          <div className="border-b pb-4">
+            <label htmlFor="max-video-duration" className="block text-lg font-semibold mb-2">Max Video Duration (seconds)</label>
+            <p className="text-sm text-gray-500 mb-2">The maximum allowed duration for a generated video.</p>
+            <input 
+              type="number" 
+              id="max-video-duration"
+              name="max_video_duration"
+              value={settings.max_video_duration}
+              onChange={handleChange}
+              className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
 
-        <button 
-          onClick={saveSettings}
-          disabled={saving}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded flex items-center disabled:opacity-50"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Settings'}
-        </button>
+        <div className="mt-8 text-right">
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors shadow-lg"
+          >
+            {isSaving ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default AdminSettings;

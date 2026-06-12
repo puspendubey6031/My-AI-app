@@ -1,220 +1,186 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
+import { CheckCircle, XCircle } from 'lucide-react';
 
-// Define the type for a plan
 type Plan = {
   id: string;
   name: string;
+  description: string;
   price: number;
-  credits: number; // Added credits
-  features: string; // Changed from json to string for textarea
+  credits: number;
   is_active: boolean;
-  created_at: string;
+  stripe_price_id: string;
 };
 
-const Plans: React.FC = () => {
+type PlanInput = Omit<Plan, 'id'>;
+
+const AdminPlans: React.FC = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
-
-  const [formState, setFormState] = useState({
-    name: '',
-    price: 0,
-    credits: 0,
-    features: '',
-    is_active: true,
-  });
-
-  const fetchPlans = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('plans')
-        .select('*')
-        .order('price', { ascending: true });
-
-      if (error) throw error;
-      setPlans(data || []);
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(`Failed to fetch plans: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<Plan | PlanInput | null>(null);
 
   useEffect(() => {
     fetchPlans();
-  }, [fetchPlans]);
+  }, []);
 
-  const openModalForCreate = () => {
-    setEditingPlan(null);
-    setFormState({ name: '', price: 0, credits: 0, features: '', is_active: true });
-    setIsModalOpen(true);
-  };
-
-  const openModalForEdit = (plan: Plan) => {
-    setEditingPlan(plan);
-    setFormState({ ...plan, features: Array.isArray(plan.features) ? plan.features.join('\n') : String(plan.features) });
-    setIsModalOpen(true);
-  };
-
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    if (type === 'checkbox') {
-      setFormState(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-    } else {
-      setFormState(prev => ({ ...prev, [name]: value }));
+  const fetchPlans = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from('plans').select('*').order('price');
+      if (error) throw error;
+      setPlans(data || []);
+    } catch (error: any) {
+      toast.error(`Error fetching plans: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-f    setLoading(true);
+  const handleEdit = (plan: Plan) => {
+    setCurrentPlan({ ...plan });
+    setIsEditing(true);
+  };
 
-    const payload = {
-        ...formState,
-        price: Number(formState.price),
-        credits: Number(formState.credits),
+  const handleAddNew = () => {
+    setCurrentPlan({
+      name: '',
+      description: '',
+      price: 0,
+      credits: 0,
+      is_active: true,
+      stripe_price_id: '',
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setCurrentPlan(null);
+  };
+
+  const handleSave = async () => {
+    if (!currentPlan) return;
+
+    const planData: Omit<Plan, 'id'> = {
+      name: currentPlan.name,
+      description: currentPlan.description,
+      price: currentPlan.price,
+      credits: currentPlan.credits,
+      is_active: currentPlan.is_active,
+      stripe_price_id: currentPlan.stripe_price_id,
     };
 
-    const { error } = editingPlan
-      ? await supabase.from('plans').update(payload).eq('id', editingPlan.id)
-      : await supabase.from('plans').insert([payload]);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(`Plan successfully ${editingPlan ? 'updated' : 'created'}!`);
-      await fetchPlans();
-      setIsModalOpen(false);
-    }
-    setLoading(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure? This could affect active subscriptions.')) {
-      const { error } = await supabase.from('plans').delete().eq('id', id);
-      if (error) {
-        toast.error(error.message);
+    setLoading(true);
+    try {
+      let error;
+      if ('id' in currentPlan && currentPlan.id) {
+        // Update existing plan
+        const { error: updateError } = await supabase
+          .from('plans')
+          .update(planData)
+          .eq('id', currentPlan.id);
+        error = updateError;
       } else {
-        toast.success('Plan deleted.');
-        await fetchPlans();
+        // Create new plan
+        const { error: insertError } = await supabase.from('plans').insert(planData);
+        error = insertError;
       }
+
+      if (error) throw error;
+
+      toast.success(`Plan ${('id' in currentPlan && currentPlan.id) ? 'updated' : 'created'} successfully!`);
+      setIsEditing(false);
+      setCurrentPlan(null);
+      fetchPlans();
+    } catch (error: any) {
+      toast.error(`Error saving plan: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleActive = async (plan: Plan) => {
-    const { error } = await supabase.from('plans').update({ is_active: !plan.is_active }).eq('id', plan.id);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(`Plan ${!plan.is_active ? 'activated' : 'deactivated'}.`);
-      await fetchPlans();
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (!currentPlan) return;
+    const { name, value, type } = e.target;
+    
+    let finalValue: string | number | boolean = value;
+    if (type === 'checkbox') {
+      finalValue = (e.target as HTMLInputElement).checked;
+    } else if (name === 'price' || name === 'credits') {
+      finalValue = Number(value);
     }
-  }
 
-  if (loading && plans.length === 0) {
-    return <div className="flex justify-center items-center h-full">Loading plans...</div>;
+    setCurrentPlan({ ...currentPlan, [name]: finalValue });
+  };
+
+  if (loading && !isEditing) {
+    return <div>Loading plans...</div>;
   }
 
   return (
-    <div>
+    <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Subscription Plans</h1>
-        <button onClick={openModalForCreate} className="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-600">
-          Add New Plan
-        </button>
+        <h1 className="text-2xl font-bold">Manage Plans</h1>
+        {!isEditing && (
+          <button onClick={handleAddNew} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 shadow">
+            Add New Plan
+          </button>
+        )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4">{editingPlan ? 'Edit Plan' : 'Create New Plan'}</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-bold mb-2" htmlFor="name">Plan Name</label>
-                    <input type="text" name="name" value={formState.name} onChange={handleFormChange} className="shadow border rounded w-full py-2 px-3" required />
-                </div>
-                 <div>
-                    <label className="block text-sm font-bold mb-2" htmlFor="price">Price ($)</label>
-                    <input type="number" name="price" value={formState.price} onChange={handleFormChange} className="shadow border rounded w-full py-2 px-3" required />
-                </div>
-                <div>
-                    <label className="block text-sm font-bold mb-2" htmlFor="credits">Credits</label>
-                    <input type="number" name="credits" value={formState.credits} onChange={handleFormChange} className="shadow border rounded w-full py-2 px-3" required />
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className="block text-sm font-bold mb-2" htmlFor="features">Features (one per line)</label>
-                <textarea name="features" value={formState.features} onChange={handleFormChange} rows={4} className="shadow border rounded w-full py-2 px-3"/>
-              </div>
-              <div className="mt-4 flex items-center">
-                 <input type="checkbox" name="is_active" id="is_active" checked={formState.is_active} onChange={handleFormChange} className="h-4 w-4 text-blue-600 rounded" />
-                 <label className="ml-2 text-sm" htmlFor="is_active">Is Active</label>
-              </div>
-              <div className="flex justify-end mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="bg-gray-300 px-4 py-2 rounded mr-2">Cancel</button>
-                <button type="submit" disabled={loading} className="bg-green-500 text-white px-4 py-2 rounded disabled:bg-gray-400">
-                  {editingPlan ? 'Update Plan' : 'Create Plan'}
-                </button>
-              </div>
-            </form>
+      {isEditing && currentPlan ? (
+        <div className="bg-white p-6 rounded-lg shadow-lg animate-fade-in">
+          <h2 className="text-xl font-bold mb-4">
+            {'id' in currentPlan && currentPlan.id ? 'Edit Plan' : 'Add New Plan'}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <input type="text" name="name" value={currentPlan.name} onChange={handleChange} placeholder="Plan Name" className="border p-2 rounded w-full" />
+            <input type="text" name="stripe_price_id" value={currentPlan.stripe_price_id} onChange={handleChange} placeholder="Stripe Price ID" className="border p-2 rounded w-full" />
+            <input type="number" name="price" value={currentPlan.price} onChange={handleChange} placeholder="Price" className="border p-2 rounded w-full" />
+            <input type="number" name="credits" value={currentPlan.credits} onChange={handleChange} placeholder="Credits" className="border p-2 rounded w-full" />
+            <textarea name="description" value={currentPlan.description} onChange={handleChange} placeholder="Description" className="border p-2 rounded w-full md:col-span-2" rows={3}></textarea>
+            <div className="flex items-center md:col-span-2">
+              <input type="checkbox" name="is_active" checked={currentPlan.is_active} onChange={handleChange} id="is_active_check" className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+              <label htmlFor="is_active_check" className="ml-2 block text-sm text-gray-900">Active</label>
+            </div>
+          </div>
+          <div className="flex justify-end gap-4 mt-6">
+            <button onClick={handleCancel} className="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400">Cancel</button>
+            <button onClick={handleSave} disabled={loading} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-green-300">
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {plans.map(plan => (
+            <div key={plan.id} className="bg-white rounded-lg shadow-lg p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start">
+                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                  <span className={`px-3 py-1 text-sm rounded-full ${plan.is_active ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                    {plan.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <p className="text-gray-600 mb-4">{plan.description}</p>
+                <div className="text-3xl font-extrabold mb-4">${plan.price}<span className="text-base font-medium text-gray-500">/mo</span></div>
+                <ul className="text-gray-700 space-y-2 mb-6">
+                  <li className="flex items-center"><CheckCircle className="w-5 h-5 text-green-500 mr-2" />{plan.credits} credits per month</li>
+                  <li className="flex items-center"><CheckCircle className="w-5 h-5 text-green-500 mr-2" />Access to all features</li>
+                   <li className="flex items-center"><XCircle className="w-5 h-5 text-red-500 mr-2" />Priority Support</li>
+                </ul>
+              </div>
+              <button onClick={() => handleEdit(plan)} className="mt-4 w-full bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-semibold">
+                Edit Plan
+              </button>
+            </div>
+          ))}
+        </div>
       )}
-
-      <div className="bg-white shadow-md rounded-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase">Price/Credits</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase">Features</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {error ? (
-                <tr><td colSpan={5} className="text-center py-8 text-red-500">Error: {error}</td></tr>
-            ) : plans.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-500">No plans found.</td></tr>
-            ) : (
-              plans.map(plan => (
-                <tr key={plan.id}>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{plan.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-bold text-lg">${plan.price}</div>
-                    <div className="text-sm text-gray-600">{plan.credits} credits</div>
-                  </td>
-                   <td className="px-6 py-4 text-sm text-gray-600">{(plan.features || '').split('\n').map((f,i) => f && <div key={i}>- {f}</div>)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <label className="flex items-center cursor-pointer">
-                        <div className="relative">
-                            <input type="checkbox" className="sr-only" checked={plan.is_active} onChange={() => toggleActive(plan)} />
-                            <div className={`block w-10 h-6 rounded-full ${plan.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${plan.is_active ? 'transform translate-x-full' : ''}`}></div>
-                        </div>
-                    </label>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button onClick={() => openModalForEdit(plan)} className="text-indigo-600 hover:text-indigo-900 font-semibold mr-4">Edit</button>
-                    <button onClick={() => handleDelete(plan.id)} className="text-red-600 hover:text-red-900 font-semibold">Delete</button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 };
 
-export default Plans;
+export default AdminPlans;

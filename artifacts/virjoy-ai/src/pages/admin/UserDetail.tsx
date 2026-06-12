@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
 
-// Define the User type
+// Define types for user, payment, and video history
 type User = {
   id: string;
   name: string | null;
@@ -14,180 +14,188 @@ type User = {
   created_at: string;
 };
 
-const UserDetail: React.FC = () => {
-  const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
+type Payment = {
+  id: string;
+  amount: number;
+  status: string;
+  plan_name: string;
+  created_at: string;
+};
 
-  const [user, setUser] = useState<User | null>(null);
-  const [formData, setFormData] = useState({ name: '', plan: 'free', credits: 0, is_blocked: false });
-  const [loading, setLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+type VideoHistory = {
+  id: string;
+  video_title: string;
+  status: string;
+  created_at: string;
+};
 
-  const fetchUser = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      if (!data) throw new Error('User not found.');
-
-      setUser(data);
-      setFormData({
-        name: data.name || '',
-        plan: data.plan || 'free',
-        credits: data.credits || 0,
-        is_blocked: data.is_blocked,
-      });
-
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleToggleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, checked } = e.target;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-  };
-
-  const handleUpdate = async () => {
-    if (!userId) return;
-    setIsUpdating(true);
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-            name: formData.name,
-            plan: formData.plan,
-            credits: Number(formData.credits),
-            is_blocked: formData.is_blocked,
-        })
-        .eq('id', userId);
-
-      if (error) throw error;
-      toast.success('User updated successfully!');
-      await fetchUser(); // Refresh data
-    } catch (err: any) {
-      toast.error(`Update failed: ${err.message}`);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!userId) return;
-    if (window.confirm('Are you sure you want to permanently delete this user?')) {
-        setIsDeleting(true);
-        try {
-            const { error } = await supabase.from('users').delete().eq('id', userId);
-            if (error) throw error;
-            toast.success('User deleted successfully.');
-            navigate('/admin/users');
-        } catch (err: any) {
-            toast.error(`Deletion failed: ${err.message}`);
-            setIsDeleting(false);
-        }
-    }
-  };
-
-  if (loading) {
-    return <div className="p-6"><div className="h-96 bg-gray-200 rounded-lg animate-pulse"></div></div>;
-  }
-
-  if (error || !user) {
-    return (
-        <div className="p-6 text-center">
-            <p className="text-red-500 mb-4">{error || 'User could not be loaded.'}</p>
-            <Link to="/admin/users" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                &larr; Back to Users
-            </Link>
-        </div>
-    )
-  }
-
-  return (
-    <div>
-        <div className="mb-4">
-             <Link to="/admin/users" className="text-blue-500 hover:underline">
-                &larr; Back to All Users
-            </Link>
-        </div>
-      <h1 className="text-2xl font-bold mb-1">{user.name || 'User Detail'}</h1>
-      <p className="text-sm text-gray-500 mb-6">User ID: {user.id}</p>
-
-      <div className="bg-white shadow rounded-lg p-6 max-w-2xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Name */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-            </div>
-
-            {/* Email */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" value={user.email || ''} disabled className="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 cursor-not-allowed" />
-            </div>
-
-            {/* Plan */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Subscription Plan</label>
-                <select name="plan" value={formData.plan} onChange={handleInputChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                    <option value="free">Free</option>
-                    <option value="starter">Starter</option>
-                    <option value="creator">Creator</option>
-                    <option value="premium">Premium</option>
-                </select>
-            </div>
-
-            {/* Credits */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Credits</label>
-                <input type="number" name="credits" value={formData.credits} onChange={handleInputChange} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-            </div>
-
-            {/* Block Status */}
-            <div className="md:col-span-2 flex items-center justify-between bg-gray-50 p-3 rounded-md">
-                <label className="font-medium text-gray-700">Block User</label>
-                <label htmlFor="is_blocked" className="flex items-center cursor-pointer">
-                    <div className="relative">
-                        <input type="checkbox" id="is_blocked" name="is_blocked" className="sr-only" checked={formData.is_blocked} onChange={handleToggleChange} />
-                        <div className={`block w-12 h-7 rounded-full ${formData.is_blocked ? 'bg-red-500' : 'bg-gray-300'}`}></div>
-                        <div className={`dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform ${formData.is_blocked ? 'transform translate-x-full' : ''}`}></div>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <div className="mt-8 pt-6 border-t border-gray-200 flex justify-between items-center">
-            <button onClick={handleDelete} disabled={isDeleting} className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50">
-                {isDeleting ? 'Deleting...' : 'Delete User'}
-            </button>
-            <button onClick={handleUpdate} disabled={isUpdating} className="bg-blue-600 text-white px-5 py-2 rounded-md shadow-sm hover:bg-blue-700 disabled:bg-blue-400">
-                {isUpdating ? 'Saving Changes...' : 'Save Changes'}
-            </button>
-        </div>
-      </div>
+const LoadingSpinner = () => (
+    <div className="flex justify-center items-center h-full">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
     </div>
-  );
+);
+
+const ErrorDisplay = ({ message }: { message: string }) => (
+    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <strong className="font-bold">Error:</strong>
+        <span className="block sm:inline"> {message}</span>
+    </div>
+);
+
+const UserDetail: React.FC<{ params: { id: string } }> = ({ params }) => {
+    const { id } = params;
+    const [, setLocation] = useLocation();
+
+    const [user, setUser] = useState<User | null>(null);
+    const [payments, setPayments] = useState<Payment[]>([]);
+    const [videos, setVideos] = useState<VideoHistory[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Editable fields state
+    const [credits, setCredits] = useState(0);
+    const [plan, setPlan] = useState('');
+
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const [userRes, paymentsRes, videosRes] = await Promise.all([
+                supabase.from('users').select('*').eq('id', id).single(),
+                supabase.from('payments').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(5),
+                supabase.from('video_history').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(5)
+            ]);
+
+            if (userRes.error) throw new Error(userRes.error.message);
+            if (paymentsRes.error) throw new Error(paymentsRes.error.message);
+            if (videosRes.error) throw new Error(videosRes.error.message);
+
+            setUser(userRes.data);
+            setPayments(paymentsRes.data);
+            setVideos(videosRes.data);
+
+            // Initialize editable fields
+            setCredits(userRes.data.credits || 0);
+            setPlan(userRes.data.plan || 'free');
+
+        } catch (err: any) {
+            setError(err.message);
+            toast.error('Failed to fetch user details.');
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleUpdate = async () => {
+        if (!user) return;
+        try {
+            const { error } = await supabase
+                .from('users')
+                .update({ credits, plan })
+                .eq('id', user.id);
+            if (error) throw error;
+            toast.success('User details updated successfully!');
+            fetchData(); // Refresh data
+        } catch (err: any) {
+            toast.error(`Update failed: ${err.message}`);
+        }
+    };
+
+    const toggleBlock = async () => {
+        if (!user) return;
+        try {
+            const newStatus = !user.is_blocked;
+            const { error } = await supabase
+                .from('users')
+                .update({ is_blocked: newStatus })
+                .eq('id', user.id);
+            if (error) throw error;
+            toast.success(`User has been ${newStatus ? 'blocked' : 'unblocked'}.`);
+            setUser({ ...user, is_blocked: newStatus });
+        } catch (err: any) {
+            toast.error(`Action failed: ${err.message}`);
+        }
+    };
+
+    if (loading) return <LoadingSpinner />;
+    if (error) return <ErrorDisplay message={error} />;
+    if (!user) return <div>User not found.</div>;
+
+    return (
+        <div className="container mx-auto px-4 py-8">
+            <button onClick={() => setLocation('/admin/users')} className="mb-6 bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition-colors">
+                &larr; Back to Users
+            </button>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* User Info & Actions */}
+                <div className="lg:col-span-1 bg-white shadow-lg rounded-lg p-6 h-fit">
+                    <div className="text-center mb-6">
+                        <h2 className="text-2xl font-bold">{user.name || 'Anonymous'}</h2>
+                        <p className="text-gray-600">{user.email}</p>
+                    </div>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Plan</label>
+                            <select value={plan} onChange={(e) => setPlan(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                <option>free</option>
+                                <option>starter</option>
+                                <option>creator</option>
+                                <option>premium</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Credits</label>
+                            <input type="number" value={credits} onChange={(e) => setCredits(parseInt(e.target.value))} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" />
+                        </div>
+                        <div className="flex justify-between items-center">
+                             <p className={`px-3 py-1 rounded-full text-sm font-semibold ${user.is_blocked ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
+                                {user.is_blocked ? 'Blocked' : 'Active'}
+                            </p>
+                            <span>Joined: {new Date(user.created_at).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                    <div className="mt-8 space-y-3">
+                        <button onClick={handleUpdate} className="w-full bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-600">Save Changes</button>
+                        <button onClick={toggleBlock} className={`w-full text-white px-4 py-2 rounded shadow ${user.is_blocked ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>
+                            {user.is_blocked ? 'Unblock User' : 'Block User'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div className="lg:col-span-2 space-y-8">
+                    <div className="bg-white shadow-lg rounded-lg p-6">
+                        <h3 className="text-xl font-bold mb-4">Recent Payments</h3>
+                        <ul>
+                            {payments.length > 0 ? payments.map(p => (
+                                <li key={p.id} className="flex justify-between items-center border-b py-2">
+                                    <span>{p.plan_name} - <span className={`font-semibold ${p.status === 'success' ? 'text-green-600' : 'text-yellow-600'}`}>{p.status}</span></span>
+                                    <span>${p.amount.toFixed(2)} on {new Date(p.created_at).toLocaleDateString()}</span>
+                                </li>
+                            )) : <p>No payment history.</p>}
+                        </ul>
+                    </div>
+                    
+                    <div className="bg-white shadow-lg rounded-lg p-6">
+                        <h3 className="text-xl font-bold mb-4">Recent Videos</h3>
+                         <ul>
+                            {videos.length > 0 ? videos.map(v => (
+                                <li key={v.id} className="flex justify-between items-center border-b py-2">
+                                    <span>{v.video_title || 'Untitled'}</span>
+                                    <span className={`font-semibold ${v.status === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>{v.status}</span>
+                                </li>
+                            )) : <p>No video history.</p>}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default UserDetail;

@@ -1,22 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'wouter';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
-
-// A debounce hook is assumed to exist at @/hooks/useDebounce
-const useDebounce = (value: string, delay: number) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedValue(value);
-        }, delay);
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [value, delay]);
-    return debouncedValue;
-};
-
+import { useDebounce } from '@/hooks/useDebounce';
 
 // Define the User type based on your Supabase table
 type User = {
@@ -70,7 +56,7 @@ const Users: React.FC = () => {
       const to = from + PAGE_SIZE - 1;
       query = query.range(from, to);
 
-      const { data, error, count } = await query;
+      const { data, error } = await query;
 
       if (error) {
         throw error;
@@ -90,7 +76,7 @@ const Users: React.FC = () => {
     setPage(0);
     setHasMore(true);
     fetchUsers(0, false);
-  }, [debouncedSearch, planFilter]);
+  }, [debouncedSearch, planFilter, fetchUsers]);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;

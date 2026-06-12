@@ -1,50 +1,44 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Home, Users, CreditCard, DollarSign, Clock, Star, Image, Bell, Settings } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
+import { LayoutDashboard, Users, CreditCard, BarChart, Settings, Bell, Film } from 'lucide-react';
+
+const navLinks = [
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/plans', label: 'Plans', icon: BarChart },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/history', label: 'History', icon: Film },
+  { href: '/admin/notifications', label: 'Notifications', icon: Bell },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
+];
 
 const AdminSidebar: React.FC = () => {
+  const [location] = useLocation();
+
   return (
-    <div className="w-64 bg-gray-800 text-white flex flex-col">
-      <div className="p-4 font-bold text-xl">VirJoy AI Admin</div>
-      <nav className="flex-1 px-2 py-4 space-y-2">
-        <NavLink to="/admin/dashboard" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <Home className="w-5 h-5 mr-2" />
-          Dashboard
-        </NavLink>
-        <NavLink to="/admin/users" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <Users className="w-5 h-5 mr-2" />
-          Users
-        </NavLink>
-        <NavLink to="/admin/plans" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <CreditCard className="w-5 h-5 mr-2" />
-          Plans
-        </NavLink>
-        <NavLink to="/admin/payments" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <DollarSign className="w-5 h-5 mr-2" />
-          Payments
-        </NavLink>
-        <NavLink to="/admin/history" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <Clock className="w-5 h-5 mr-2" />
-          History
-        </NavLink>
-        <NavLink to="/admin/subscriptions" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <Star className="w-5 h-5 mr-2" />
-          Subscriptions
-        </NavLink>
-        <NavLink to="/admin/banner-ads" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <Image className="w-5 h-5 mr-2" />
-          Banner Ads
-        </NavLink>
-        <NavLink to="/admin/notifications" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <Bell className="w-5 h-5 mr-2" />
-          Notifications
-        </NavLink>
-        <NavLink to="/admin/settings" className="flex items-center px-4 py-2 rounded hover:bg-gray-700">
-          <Settings className="w-5 h-5 mr-2" />
-          Settings
-        </NavLink>
+    <aside className="w-64 bg-gray-800 text-white flex flex-col">
+      <div className="h-20 flex items-center justify-center font-bold text-xl border-b border-gray-700">
+        Admin Panel
+      </div>
+      <nav className="flex-grow p-4">
+        <ul className="space-y-2">
+          {navLinks.map(link => {
+            const isActive = location.startsWith(link.href);
+            const Icon = link.icon;
+            return (
+              <li key={link.href}>
+                <Link href={link.href}>
+                  <a className={`flex items-center px-4 py-2.5 rounded-lg transition-colors ${isActive ? 'bg-blue-600 text-white' : 'hover:bg-gray-700'}`}>
+                    <Icon className="w-5 h-5 mr-3" />
+                    {link.label}
+                  </a>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
-    </div>
+    </aside>
   );
 };
 
