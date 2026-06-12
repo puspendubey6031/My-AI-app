@@ -1,0 +1,26 @@
+{
+  "name": "VirJoy AI",
+  "short_name": "VirJoy",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d0d14",
+  "theme_color": "#8B5CF6",
+  "description": "AI-Powered Video Generation",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

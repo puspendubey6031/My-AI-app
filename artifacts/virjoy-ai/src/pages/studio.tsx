@@ -93,6 +93,7 @@ export default function Studio() {
   const [videoHistory, setVideoHistory] = useState<any[]>([]);
   const [selectedRatio, setSelectedRatio] = useState("16:9");
   const [genStep, setGenStep] = useState(0);
+  const [loadingPercentage, setLoadingPercentage] = useState(0);
 
   const { data: activeJob } = useGetVideo(activeJobId || "", {
     query: {
@@ -122,14 +123,23 @@ export default function Studio() {
   const isFailed = activeJob?.status === "failed";
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
     if (isGenerating) {
-      const interval = setInterval(() => {
-        setGenStep(s => (s + 1) % GENERATION_STEPS.length);
-      }, 2200);
-      return () => clearInterval(interval);
+      setLoadingPercentage(0);
+      const increments = [10, 35, 65, 85, 95];
+      let i = 0;
+      interval = setInterval(() => {
+        if (i < increments.length) {
+          setLoadingPercentage(increments[i]);
+          i++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 1000);
     } else {
-      setGenStep(0);
+      setLoadingPercentage(0);
     }
+    return () => clearInterval(interval);
   }, [isGenerating]);
 
   const fetchHistory = async () => {
@@ -210,6 +220,23 @@ export default function Studio() {
 
   return (
     <div className="w-full">
+
+      {isGenerating && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-gray-800/50 border border-gray-700 p-8 rounded-2xl shadow-xl text-center max-w-sm mx-auto">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-primary mx-auto mb-6"></div>
+            <p className="text-lg font-semibold mb-3 text-white">VirJoy AI is rendering your video...</p>
+            <p className="text-sm text-gray-400 mb-6">Waiting for server response</p>
+            <div className="w-full bg-gray-700 rounded-full h-2.5">
+              <div
+                className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${loadingPercentage}%` }}
+              ></div>
+            </div>
+            <p className="mt-3 text-sm font-medium text-gray-300">{loadingPercentage}%</p>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO ────────────────────────────────────────────────────── */}
       <section className="relative min-h-screen flex flex-col items-center justify-center pt-28 pb-16 px-4 overflow-hidden">
@@ -672,6 +699,9 @@ export default function Studio() {
                 <h2 className="text-3xl md:text-4xl font-black tracking-tight">Your Creations</h2>
                 <p className="text-white/35 mt-3 text-base">Here are the recent videos you have generated.</p>
             </div>
+            <div className="p-4 border rounded-lg bg-yellow-100/10 border-yellow-400/30 text-yellow-300 mb-8 max-w-2xl mx-auto text-center">
+              <p>⚠️ Note: To optimize system performance, all generated videos are automatically deleted after 24 to 48 hours. Please download your videos to keep them permanently.</p>
+            </div>
             {videoHistory.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {videoHistory.map(video => (
@@ -785,7 +815,7 @@ export default function Studio() {
                 onSelect={() => {
                   form.setValue("plan", plan.id as PlanId);
                   if (form.getValues("duration") > plan.maxDuration) form.setValue("duration", plan.maxDuration);
-                  scrollToSection("create");
+                  scrollToSection("create
                 }}
               />
             ))}
