@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { supabase } from '@/lib/supabase';
 import {
   useGetPlans,
   useCreateVideoJob,
@@ -27,6 +28,11 @@ import {
   Target, Ghost, MonitorPlay, Smartphone, Clapperboard, Video,
   Download, Activity, X, ImageIcon, Film, Monitor, ScanLine, Cpu, Zap
 } from "lucide-react";
+
+// Mock useAuth hook
+const useAuth = () => ({
+  userId: '123-abc-xyz'
+});
 
 const formSchema = z.object({
   prompt: z.string().min(3, "Please describe your video idea"),
@@ -73,6 +79,7 @@ export default function Studio() {
   const createVideoJob = useCreateVideoJob();
   const generateAiStory = useGenerateAiStory();
   const { toast } = useToast();
+  const { userId } = useAuth();
 
   const [images, setImages] = useState<File[]>([]);
   const [clips, setClips] = useState<File[]>([]);
@@ -82,6 +89,8 @@ export default function Studio() {
   const screenshotInputRef = useRef<HTMLInputElement>(null);
 
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+  const [videoHistory, setVideoHistory] = useState<any[]>([]);
   const [selectedRatio, setSelectedRatio] = useState("16:9");
   const [genStep, setGenStep] = useState(0);
 
@@ -108,47 +117,73 @@ export default function Studio() {
   const detectedStyle = watchedPrompt.length > 2 ? detectStyle(watchedPrompt) : null;
   const totalAttachments = images.length + clips.length + screenshots.length;
 
-  const isGenerating = createVideoJob.isPending || activeJob?.status === "queued" || activeJob?.status === "processing";
-  const isDone = activeJob?.status === "done";
+  const isGenerating = createVideoJob.isPending || (activeJob?.status === "queued" || activeJob?.status === "processing");
+  const isDone = activeJob?.status === "done" || generatedVideoUrl;
   const isFailed = activeJob?.status === "failed";
 
-  // Cycle generation steps while rendering
   useEffect(() => {
-    if (!isGenerating) { setGenStep(0); return; }
-    const interval = setInterval(() => {
-      setGenStep(s => (s + 1) % GENERATION_STEPS.length);
-    }, 2200);
-    return () => clearInterval(interval);
+    if (isGenerating) {
+      const interval = setInterval(() => {
+        setGenStep(s => (s + 1) % GENERATION_STEPS.length);
+      }, 2200);
+      return () => clearInterval(interval);
+    } else {
+      setGenStep(0);
+    }
   }, [isGenerating]);
 
-  const handleEnhanceWithAi = async () => {
-    const prompt = form.getValues("prompt");
-    if (!prompt.trim()) return;
-    try {
-      const res = await generateAiStory.mutateAsync({ data: { prompt } });
-      form.setValue("prompt", `${res.title}. ${res.story}`);
-      if (res.detectedType) form.setValue("videoType", res.detectedType as VideoJobVideoType);
-      toast({ title: "Prompt Enhanced!", description: "AI has expanded your idea into a cinematic brief." });
-    } catch (err: any) {
-      toast({ title: "Enhancement Failed", description: err?.message || "Could not enhance prompt", variant: "destructive" });
+  const fetchHistory = async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast({ title: "Error fetching history", description: error.message, variant: "destructive" });
+    } else {
+      setVideoHistory(data);
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const formData = new FormData();
-    formData.append("prompt", values.prompt);
-    if (values.videoType) formData.append("videoType", values.videoType);
-    formData.append("duration", values.duration.toString());
-    formData.append("plan", values.plan);
-    images.forEach(img => formData.append("images", img));
-    clips.forEach(clip => formData.append("clips", clip));
-    screenshots.forEach(s => formData.append("images", s));
+  useEffect(() => {
+    fetchHistory();
+  }, [userId]);
+
+  const handleGenerateVideo = async (values: z.infer<typeof formSchema>) => {
+    if (!userId) {
+      toast({ title: "Authentication Error", description: "You must be logged in to generate a video.", variant: "destructive" });
+      return;
+    }
+
+    createVideoJob.mutate({} as any); // To trigger loading state
+
     try {
-      const job = await createVideoJob.mutateAsync({ data: formData as any });
-      setActiveJobId(job.id);
-      toast({ title: "Generating Video", description: "Your cinematic video is being created." });
+      const response = await fetch('http://localhost:5000/api/generate-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: values.prompt,
+          aspectRatio: selectedRatio,
+          userId: userId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate video');
+      }
+
+      const result = await response.json();
+      setGeneratedVideoUrl(result.videoUrl);
+      toast({ title: "Video Generated!", description: "Your video is ready to be viewed." });
+      fetchHistory(); // Refresh history
     } catch (err: any) {
-      toast({ title: "Submission Failed", description: err?.message || "Could not create video job", variant: "destructive" });
+      toast({ title: "Generation Failed", description: err?.message || "Could not generate video", variant: "destructive" });
+    } finally {
+        createVideoJob.reset();
     }
   };
 
@@ -243,7 +278,7 @@ export default function Studio() {
             className="w-full"
           >
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)}>
+              <form onSubmit={form.handleSubmit(handleGenerateVideo)}>
 
                 {/* ── PROMPT BOX ── */}
                 <div className="relative group mb-3">
@@ -326,7 +361,6 @@ export default function Studio() {
                             type="button"
                             size="sm"
                             variant="ghost"
-                            onClick={handleEnhanceWithAi}
                             disabled={generateAiStory.isPending || !watchedPrompt.trim() || isGenerating}
                             className="text-primary/70 hover:text-primary hover:bg-primary/10 text-xs font-semibold rounded-lg h-8 px-3 gap-1.5"
                           >
@@ -474,7 +508,7 @@ export default function Studio() {
                 </div>
 
                 {/* ── GENERATE BUTTON ── */}
-                {!activeJobId && (
+                {!activeJobId && !generatedVideoUrl && (
                   <div className="relative group/btn">
                     <motion.div
                       animate={{ opacity: [0.5, 1, 0.5] }}
@@ -517,7 +551,7 @@ export default function Studio() {
 
           {/* ── JOB STATUS PANEL ── */}
           <AnimatePresence>
-            {activeJobId && (
+            {(activeJobId || generatedVideoUrl) && (
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -591,20 +625,18 @@ export default function Studio() {
                     </div>
                   )}
 
-                  {isDone && (
+                  {isDone && (generatedVideoUrl || activeJob?.outputUrl) && (
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-emerald-400 bg-emerald-400/8 p-3.5 rounded-xl border border-emerald-400/20 text-sm font-semibold">
                         <CheckCircle2 className="w-5 h-5 shrink-0" /> Your cinematic video is ready!
                       </div>
-                      {activeJob?.outputUrl && (
-                        <div className="rounded-xl overflow-hidden border border-white/10 bg-black">
-                          <VideoPlayer url={activeJob.outputUrl} title={activeJob.title || "Generated Video"} />
-                        </div>
-                      )}
+                      <div className="rounded-xl overflow-hidden border border-white/10 bg-black">
+                        <VideoPlayer url={generatedVideoUrl || activeJob.outputUrl} title={activeJob?.title || "Generated Video"} />
+                      </div>
                       <Button
                         variant="outline"
                         className="w-full h-11 rounded-xl border-white/15 hover:bg-white/8 font-semibold text-sm"
-                        onClick={() => { setActiveJobId(null); form.reset(); setImages([]); setClips([]); setScreenshots([]); }}
+                        onClick={() => { setActiveJobId(null); setGeneratedVideoUrl(null); form.reset(); setImages([]); setClips([]); setScreenshots([]); }}
                       >
                         Create Another Video
                       </Button>
@@ -616,7 +648,7 @@ export default function Studio() {
                       <div className="text-rose-400 bg-rose-400/8 p-3.5 rounded-xl border border-rose-400/20 text-sm font-medium">
                         Generation failed. Please try again.
                       </div>
-                      <Button variant="outline" className="w-full h-11 rounded-xl border-white/15 hover:bg-white/8 font-semibold text-sm" onClick={() => setActiveJobId(null)}>
+                      <Button variant="outline" className="w-full h-11 rounded-xl border-white/15 hover:bg-white/8 font-semibold text-sm" onClick={() => { setActiveJobId(null); setGeneratedVideoUrl(null); }}>
                         Reset
                       </Button>
                     </div>
@@ -630,6 +662,27 @@ export default function Studio() {
         {/* stat strip */}
         <div className="w-full mt-14 relative z-10">
           <StatStrip />
+        </div>
+      </section>
+
+      {/* ── VIDEO HISTORY ─────────────────────────────────────────── */}
+      <section className="py-20 relative border-t border-white/[0.05]">
+        <div className="container mx-auto px-4 max-w-5xl">
+            <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl font-black tracking-tight">Your Creations</h2>
+                <p className="text-white/35 mt-3 text-base">Here are the recent videos you have generated.</p>
+            </div>
+            {videoHistory.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {videoHistory.map(video => (
+                        <div key={video.id} className="rounded-xl overflow-hidden border border-white/10 bg-black">
+                            <VideoPlayer url={video.video_url} title={video.prompt} />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center text-white/50">You haven't generated any videos yet.</div>
+            )}
         </div>
       </section>
 
