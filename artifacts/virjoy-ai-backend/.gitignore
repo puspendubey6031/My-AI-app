@@ -1,0 +1,20 @@
+# Secret Files - Git Ignore करेगा
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Build
+dist/
+build/
+
+# OS Files
+.DS_Store
+Thumbs.db

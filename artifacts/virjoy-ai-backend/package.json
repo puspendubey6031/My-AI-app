@@ -1,0 +1,18 @@
+{
+  "name": "virjoy-ai-backend",
+  "version": "1.0.0",
+  "description": "Backend for VirJoy AI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "node-cron": "^3.0.3",
+    "ws": "^8.21.0"
+  }
+}
